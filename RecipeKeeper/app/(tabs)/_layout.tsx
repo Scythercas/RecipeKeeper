@@ -10,7 +10,7 @@ function TabIcon({ emoji }: { emoji: string }) {
 // Web版はブラウザのセーフエリア報告(env(safe-area-inset-bottom))が環境によって
 // 不安定で、動的に高さを変えるとタブバーが画面からはみ出すことがあったため、
 // 固定値の余白だけを追加する(はみ出しの心配がない代わりに端末ごとの最適値ではない)。
-const WEB_TAB_BAR_STYLE = Platform.OS === 'web' ? { height: 70, paddingBottom: 20, paddingTop: 6 } : undefined;
+const WEB_TAB_BAR_STYLE = Platform.OS === 'web' ? { height: 70, paddingBottom: 40, paddingTop: 6 } : undefined;
 
 export default function TabsLayout() {
   return (
