@@ -115,12 +115,16 @@ Web版のAI生成は当初Cloudflare Workerによる合言葉プロキシ方式�
 
 ### Web版のデプロイ手順
 
-`gh-pages`ブランチは、`develop/v001`と共通祖先を持たない**orphanブランチ**で、`npx expo export --platform web`の出力(+ 上記の`viewport-fit`パッチ)だけを置く。手順:
+`gh-pages`ブランチは、`develop/v001`と共通祖先を持たない**orphanブランチ**で、`npx expo export --platform web`の出力(+ 下記2点の手動パッチ)だけを置く。手順:
 
 ```
 cd RecipeKeeper
 npx expo export --platform web --clear
-# dist/index.html の viewport meta タグに viewport-fit=cover を追記
+# dist/index.html を2箇所手動編集(builtin +html.tsxが効かないための代替):
+#   1. viewport meta タグに viewport-fit=cover を追記
+#   2. <style id="expo-reset"> 内の html,body,#root の height:100% の直後に height:100dvh を追記
+#      (モバイルSafariは100%/100vhがアドレスバー分を考慮しないため、タブバー等が
+#       画面下端で見切れる原因になる。100dvhは実際に見えている範囲を正しく反映する)
 git worktree add ../<temp-dir-name> gh-pages
 cd ../<temp-dir-name>
 # 既存の _expo/assets/favicon.ico/index.html/metadata.json を git rm -r してから dist の中身を丸ごとコピー
