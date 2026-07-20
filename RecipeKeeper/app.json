@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "RecipeKeeper",
+    "slug": "recipekeeper",
+    "scheme": "recipekeeper",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.example.recipekeeper"
+    },
+    "android": {
+      "package": "com.example.recipekeeper",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-status-bar",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "手書きレシピや完成写真をライブラリから選択するために使用します。",
+          "cameraPermission": "手書きレシピや料理の写真を撮影するためにカメラを使用します。"
+        }
+      ]
+    ]
+  }
+}
