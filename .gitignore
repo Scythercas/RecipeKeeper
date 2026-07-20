@@ -3,4 +3,4 @@
 # 混入しがちなキャッシュ類だけは無視しておく)。
 .expo/
 .wrangler/
-node_modules/
+/node_modules/
