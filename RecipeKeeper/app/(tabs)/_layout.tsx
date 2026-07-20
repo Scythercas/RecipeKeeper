@@ -13,7 +13,10 @@ function TabIcon({ emoji }: { emoji: string }) {
 // heightは「中身(アイコン+ラベル)の高さ + 上下の余白」から自動計算する。
 // 余白だけを増減させてもアイコン/ラベルの表示スペースが潰れないようにするため、
 // heightを固定値にしないこと。
-const WEB_TAB_BAR_CONTENT_HEIGHT = 44; // アイコン+ラベルの表示に必要な高さ
+// react-navigationの各タブ項目自体にも内部余白(padding:5、上下合計10px)があり、
+// さらにアイコン(fontSize 20 ≒ 24px)とラベル(fontSize 10 ≒ 14px)を足すと
+// 実際には48px前後必要。それより小さいとラベルが見切れるため余裕を持たせる。
+const WEB_TAB_BAR_CONTENT_HEIGHT = 60;
 const WEB_TAB_BAR_PADDING_TOP = 6;
 const WEB_TAB_BAR_PADDING_BOTTOM = 40;
 const WEB_TAB_BAR_STYLE =
