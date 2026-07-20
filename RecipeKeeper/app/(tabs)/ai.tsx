@@ -54,24 +54,28 @@ export default function AIGenerateScreen() {
     }
   }
 
-  function saveGenerated() {
+  async function saveGenerated() {
     if (!generated) return;
-    addRecipe({
-      title: generated.title,
-      genre: generated.genre,
-      sourceURL: '',
-      ingredients: generated.ingredients,
-      seasonings: generated.seasonings,
-      steps: generated.steps,
-      memo: generated.point ? `ポイント: ${generated.point}` : '',
-      isAIGenerated: true,
-      dishPhotos: [],
-      handwrittenPhotos: [],
-    });
-    Alert.alert('レシピに保存しました');
-    setGenerated(null);
-    setIngredientsText('');
-    setRequestNote('');
+    try {
+      await addRecipe({
+        title: generated.title,
+        genre: generated.genre,
+        sourceURL: '',
+        ingredients: generated.ingredients,
+        seasonings: generated.seasonings,
+        steps: generated.steps,
+        memo: generated.point ? `ポイント: ${generated.point}` : '',
+        isAIGenerated: true,
+        dishPhotos: [],
+        handwrittenPhotos: [],
+      });
+      Alert.alert('レシピに保存しました');
+      setGenerated(null);
+      setIngredientsText('');
+      setRequestNote('');
+    } catch (e) {
+      Alert.alert('保存に失敗しました', e instanceof Error ? e.message : String(e));
+    }
   }
 
   return (

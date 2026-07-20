@@ -14,7 +14,7 @@ function linesToList(text: string): string[] {
 
 type Props = {
   initial?: Recipe;
-  onSave: (input: NewRecipeInput) => void;
+  onSave: (input: NewRecipeInput) => void | Promise<void>;
 };
 
 export default function RecipeForm({ initial, onSave }: Props) {

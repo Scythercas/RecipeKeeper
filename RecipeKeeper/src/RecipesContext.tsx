@@ -8,11 +8,11 @@ import type { NewRecipeInput, Recipe } from './types';
 type RecipesContextValue = {
   recipes: Recipe[];
   isLoaded: boolean;
-  addRecipe: (input: NewRecipeInput) => Recipe;
-  updateRecipe: (id: string, input: NewRecipeInput) => void;
-  deleteRecipe: (id: string) => void;
-  addCookLog: (recipeId: string, tweak: string) => void;
-  deleteCookLog: (recipeId: string, cookLogId: string) => void;
+  addRecipe: (input: NewRecipeInput) => Promise<Recipe>;
+  updateRecipe: (id: string, input: NewRecipeInput) => Promise<void>;
+  deleteRecipe: (id: string) => Promise<void>;
+  addCookLog: (recipeId: string, tweak: string) => Promise<void>;
+  deleteCookLog: (recipeId: string, cookLogId: string) => Promise<void>;
 };
 
 const RecipesContext = createContext<RecipesContextValue | null>(null);
@@ -35,7 +35,7 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
     saveRecipes(recipes);
   }, [recipes, isLoaded]);
 
-  const addRecipe = useCallback((input: NewRecipeInput): Recipe => {
+  const addRecipe = useCallback(async (input: NewRecipeInput): Promise<Recipe> => {
     const recipe: Recipe = {
       ...input,
       id: generateId(),
@@ -46,20 +46,20 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
     return recipe;
   }, []);
 
-  const updateRecipe = useCallback((id: string, input: NewRecipeInput) => {
+  const updateRecipe = useCallback(async (id: string, input: NewRecipeInput): Promise<void> => {
     setRecipes((prev) =>
       prev.map((r) => (r.id === id ? { ...r, ...input } : r))
     );
   }, []);
 
-  const deleteRecipe = useCallback((id: string) => {
+  const deleteRecipe = useCallback(async (id: string): Promise<void> => {
     const target = recipesRef.current.find((r) => r.id === id);
     target?.dishPhotos.forEach(deletePhoto);
     target?.handwrittenPhotos.forEach(deletePhoto);
     setRecipes((prev) => prev.filter((r) => r.id !== id));
   }, []);
 
-  const addCookLog = useCallback((recipeId: string, tweak: string) => {
+  const addCookLog = useCallback(async (recipeId: string, tweak: string): Promise<void> => {
     setRecipes((prev) =>
       prev.map((r) =>
         r.id === recipeId
@@ -75,7 +75,7 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const deleteCookLog = useCallback((recipeId: string, cookLogId: string) => {
+  const deleteCookLog = useCallback(async (recipeId: string, cookLogId: string): Promise<void> => {
     setRecipes((prev) =>
       prev.map((r) =>
         r.id === recipeId

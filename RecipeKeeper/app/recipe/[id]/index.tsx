@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import React, { useLayoutEffect, useState } from 'react';
 import {
+  Alert,
   Linking,
   Modal,
   Pressable,
@@ -45,10 +46,22 @@ export default function RecipeDetailScreen() {
     );
   }
 
-  function recordCook() {
-    addCookLog(recipe!.id, tweak.trim());
-    setTweak('');
-    setShowCookModal(false);
+  async function recordCook() {
+    try {
+      await addCookLog(recipe!.id, tweak.trim());
+      setTweak('');
+      setShowCookModal(false);
+    } catch (e) {
+      Alert.alert('記録に失敗しました', e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function removeCookLog(cookLogId: string) {
+    try {
+      await deleteCookLog(recipe!.id, cookLogId);
+    } catch (e) {
+      Alert.alert('削除に失敗しました', e instanceof Error ? e.message : String(e));
+    }
   }
 
   const sortedLogs = [...recipe.cookLogs].sort((a, b) => b.date.localeCompare(a.date));
@@ -118,7 +131,7 @@ export default function RecipeDetailScreen() {
                   </Text>
                   {log.tweak.length > 0 && <Text style={styles.logTweak}>💡 {log.tweak}</Text>}
                 </View>
-                <Pressable onPress={() => deleteCookLog(recipe!.id, log.id)} hitSlop={8}>
+                <Pressable onPress={() => removeCookLog(log.id)} hitSlop={8}>
                   <Text style={styles.deleteLog}>削除</Text>
                 </Pressable>
               </View>

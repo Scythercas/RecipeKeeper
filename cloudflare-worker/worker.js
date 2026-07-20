@@ -1,3 +1,8 @@
+// [廃止予定] supabase/functions/generate-recipe に移行済み。
+// Web版はSupabaseアカウント認証+レート制限つきのEdge Function経由でAI生成するようになったため、
+// この合言葉方式のプロキシはもう使われていない。Cloudflare側で実際にWorkerを停止したら、
+// このディレクトリごと削除すること。
+//
 // RecipeKeeper Web版が使うプロキシ。Anthropicの本物のAPIキーはこのWorkerの
 // シークレット(env.ANTHROPIC_API_KEY)にのみ存在し、ブラウザ側には一切渡さない。
 // クライアントは自分だけが知る合言葉(env.APP_SHARED_SECRET)をヘッダーで送り、

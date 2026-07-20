@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
-import { Text } from 'react-native';
+import { Alert, Text } from 'react-native';
 
 import RecipeForm from '../../../src/components/RecipeForm';
 import { useRecipe, useRecipes } from '../../../src/RecipesContext';
@@ -16,9 +16,13 @@ export default function EditRecipeScreen() {
     return <Text style={{ padding: 16 }}>レシピが見つかりません</Text>;
   }
 
-  function handleSave(input: NewRecipeInput) {
-    updateRecipe(recipe!.id, input);
-    router.back();
+  async function handleSave(input: NewRecipeInput) {
+    try {
+      await updateRecipe(recipe!.id, input);
+      router.back();
+    } catch (e) {
+      Alert.alert('更新に失敗しました', e instanceof Error ? e.message : String(e));
+    }
   }
 
   return <RecipeForm initial={recipe} onSave={handleSave} />;
