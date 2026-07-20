@@ -61,11 +61,7 @@ export default function RecipeListScreen() {
 
     if (searchText.trim()) {
       const q = searchText.trim().toLowerCase();
-      result = result.filter(
-        (r) =>
-          r.title.toLowerCase().includes(q) ||
-          r.ingredients.some((i) => i.toLowerCase().includes(q))
-      );
+      result = result.filter((r) => r.title.toLowerCase().includes(q));
     }
 
     const sorted = [...result];
@@ -87,7 +83,7 @@ export default function RecipeListScreen() {
     <View style={styles.container}>
       <TextInput
         style={styles.search}
-        placeholder="レシピ名・食材で検索"
+        placeholder="レシピ名で検索"
         value={searchText}
         onChangeText={setSearchText}
       />
@@ -106,9 +102,10 @@ export default function RecipeListScreen() {
         </View>
       </ScrollView>
 
+      <Text style={styles.ingredientLabel}>食材で絞り込む(すべて含むレシピだけを表示)</Text>
       <TextInput
         style={styles.ingredientInput}
-        placeholder="使う食材で絞り込み(例: 鶏肉, なす)"
+        placeholder="例: 鶏肉, なす"
         value={ingredientFilter}
         onChangeText={setIngredientFilter}
       />
@@ -164,9 +161,16 @@ const styles = StyleSheet.create({
   },
   genreScroll: { marginTop: 12, flexGrow: 0 },
   genreRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
+  ingredientLabel: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+  },
   ingredientInput: {
     marginHorizontal: 16,
-    marginTop: 8,
+    marginTop: 6,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#ccc',
     borderRadius: 8,
