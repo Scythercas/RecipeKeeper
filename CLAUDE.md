@@ -4,7 +4,10 @@
 
 ## プロジェクト概要
 
-RecipeKeeper は Expo(React Native)製の iOS/Android レシピ管理アプリ。サーバーは持たず、データはすべて端末内(AsyncStorage + ファイルシステム)に保存する。唯一の外部通信は「AIレシピ生成」機能で、Anthropic API に直接リクエストする。
+RecipeKeeper は Expo(React Native)製のレシピ管理アプリ。**ネイティブ版(iOS/Android)とWeb版でアーキテクチャが異なる**:
+
+- **ネイティブ版**: サーバーを持たず、データはすべて端末内(AsyncStorage + ファイルシステム)に保存する。唯一の外部通信は「AIレシピ生成」機能で、Anthropic API に直接リクエストする。ログイン等のアカウント機能は無い(個人利用前提)。
+- **Web版**(GitHub Pagesで公開、`https://scythercas.github.io/RecipeKeeper/`): Supabase(Postgres + Auth + Storage + Edge Functions)を使った**複数ユーザー対応のアカウント制**。ログイン/サインアップ/パスワード再設定があり、レシピデータはユーザーごとにRLSで分離してPostgresに保存、写真はSupabase Storageに保存、AI生成はSupabase Edge Function経由(1ユーザー1日5回まで、あなたのAnthropicキーを共有)。詳細は下記「Web版アーキテクチャ」を参照。
 
 主な機能:
 - レシピ登録(参考サイトURL、手書きレシピ写真、完成写真)
@@ -49,6 +52,8 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
         └── FilterChip.tsx        ジャンル選択チップ
 ```
 
+上記はネイティブ版の構成(現在も正確)。Web版はこれに`.web.ts(x)`ファイルと`src/web/`ディレクトリが加わる。詳細は下記「Web版アーキテクチャ」を参照。リポジトリルート(このファイルと同じ階層)には他に `cloudflare-worker/`(廃止済み、削除予定)と `supabase/functions/`(Web版のAI生成用Edge Function)がある。
+
 ### データモデル(src/types.ts)
 
 - `Recipe`: title / genre / sourceURL / ingredients / seasonings / steps / memo / isAIGenerated / createdAt / dishPhotos(完成写真のファイルURI配列)/ handwrittenPhotos(手書きレシピのファイルURI配列)/ cookLogs(調理記録の配列)。SwiftData版と異なり、1つのJSONオブジェクトとしてAsyncStorageにまるごと保存する(正規化していない)。
@@ -70,31 +75,87 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
 
 ### フィルタ・検索(app/(tabs)/index.tsx)
 
+- 上部の検索欄は**レシピ名のみ**を対象にした部分一致(食材は含まない)。食材の絞り込みは下の「食材で絞り込む」欄で行う、複数食材のAND一致専用の別コントロール。かつては1つの検索欄が名前と食材の両方を検索していて紛らわしかったため、役割を分離した(2026年7月)。
 - 食材フィルタは大文字小文字を無視した**文字列の部分一致**。表記ゆれ(「たまねぎ/玉ねぎ」など)は正規化していない。Swift版から引き継いだ既知の制限であり、意図的な単純実装。
+
+## Web版アーキテクチャ(Supabase)
+
+ネイティブ版は上記の通りサーバーレスのまま。**Web版だけ**、`src/`配下の`*.web.ts(x)`ファイルと`app/`配下の一部ルートを使って、Supabaseベースの別実装に差し替えている。
+
+### プラットフォーム分岐の方式
+
+Metro/Expo Routerは`foo.web.tsx`という同名ファイルをWebビルド時にだけ自動解決する。この機能を使い、**ネイティブ用ファイルは一切編集せず**、Web専用の実装を並べて追加する方針を徹底している:
+
+- `src/RecipesContext.tsx`(ネイティブ、AsyncStorage) ⇔ `src/RecipesContext.web.tsx`(Web、Supabase)
+- `src/photoStorage.ts`(ネイティブ、expo-file-system) ⇔ `src/photoStorage.web.ts`(Web、Supabase Storage)
+- `src/claude.ts`(ネイティブ、SecureStore+Anthropic直呼び) ⇔ `src/claude.web.ts`(Web、Supabase Edge Function経由)
+- `app/(tabs)/settings.tsx`(ネイティブ) ⇔ `app/(tabs)/settings.web.tsx`(Web、実体は`src/components/AIUsageIndicator.tsx`と同様のパターン)
+
+新しい `src/web/` ディレクトリに、Web専用のヘルパー(`supabaseClient.ts`, `AuthContext.tsx`, `recipeMappers.ts`)と、実際の画面コンポーネント(`src/web/screens/*.tsx`)が入っている。
+
+### ⚠️ `app/` 配下のルートファイルには要注意(このハマりどころに時間を使ったので必ず読むこと)
+
+`src/`配下の普通のimportは`.web.ts(x)`の自動解決が問題なく効く(検証済み: ネイティブのbundleに`expo-secure-store`の文字列が一切含まれないことをgrepで確認済み)。しかし **`app/`配下の「ルートファイル」は挙動が異なる**:
+
+1. **プラットフォーム拡張子だけのルートは存在できない。** `expo-router`のルート探索(`getRoutesCore.js`)は、`login.web.tsx`のような「`.web.tsx`はあるがプレーンな`.tsx`が無い」ルートに対して、実際にそのルートへ遷移した瞬間(ビルド時ではなく**実行時**)に`"The file ... does not have a fallback sibling file without a platform extension."`という例外を投げる。Web限定のルートを作る場合も、**必ず中身が空でもいいので同名のプレーンな`.tsx`フォールバックを置くこと**(`app/login.tsx`, `app/signup.tsx`, `app/forgot-password.tsx`, `app/reset-password.tsx`が実例。ネイティブでは`_layout.tsx`がこれらを一切参照しないので実質使われない)。
+2. **`app/`配下の`.web.tsx`ファイルは、ネイティブ向けビルドの成果物(.hbc)にも物理的に含まれてしまう**(実行はされないが、コードは残る)。これは`expo-router`のルート探索がプラットフォームを問わず全ファイルを候補として扱うため。`React.lazy`で遅延importにしても、React Native(Hermes)は単一バンドルなので、コード自体はバンドルに残る(実行されないだけ)。そのため、Web専用ルート(`login.web.tsx`等)は**Supabaseクライアントなどへの静的importを直接書かず**、実体を`src/web/screens/*.tsx`に置いて`React.lazy(() => import(...))`経由で読み込む薄いシムにしてある。ネイティブのバンドルサイズは数百KB増える(実測+約570KB)が、実行時に読み込まれることはない(`grep`で`ai_generation_usage`等の文字列がネイティブbundleに含まれないことを都度確認している)。
+3. **`app/+html.tsx`によるHTMLカスタマイズ(`viewport-fit=cover`の追加など)は、`app.json`の`web.output`が`"static"`のときしか効かない。** このプロジェクトはSPA向けの`"single"`モード(デフォルト)を使っているため、`+html.tsx`は無視される。`"static"`への切り替えは(クライアント専用のSupabaseコードがNode.js側の事前レンダリングでクラッシュしうるなど)リスクが大きいため見送り、代わりに**`npx expo export --platform web`の実行後、`dist/index.html`の`<meta name="viewport">`を手動で`viewport-fit=cover`付きに書き換えてからデプロイする**運用にしている。
+4. **Metroのトランスフォームキャッシュが、`.env`の値の変更を検知しないことがある。** ソースコード自体は変わっていないため、`.env`を更新しても古い値(例: テスト用のダミーURL)がバンドルに埋め込まれたままになるケースが実際に発生した。`.env`を変更した後の本番ビルドは、必ず`npx expo export --platform web --clear`で明示的にキャッシュをクリアすること。
+
+### Supabaseスキーマ・設定
+
+- テーブル: `recipes`, `cook_logs`(`user_id`で所有者を持ちRLSで分離), `ai_generation_usage`(1ユーザー1日ごとの生成回数。`try_consume_ai_generation` SECURITY DEFINER関数経由でのみ加算でき、`ai_generation_usage_owner_select`ポリシーで本人だけ閲覧可)。
+- Storage: `recipe-photos`バケット(公開・パスは`${user_id}/${filename}.jpg`というフラット構成。レシピID単位にしていないのは、新規レシピ作成時点ではレシピIDがまだ確定していないため)。
+- Edge Function: `supabase/functions/generate-recipe/`。JWT検証 → レート制限判定 → プロンプト構築 → Anthropic呼び出し、を一括で行う。`ANTHROPIC_API_KEY`と`DAILY_AI_LIMIT`をシークレットとして保持。
+- ローカルでのSupabase CLI操作(`supabase secrets set` / `supabase functions deploy` / `supabase db query --linked`でのSQL実行等)は`supabase login`のブラウザ認証さえ済んでいれば、このエージェントが直接実行できる(実際にRLSポリシー追加などを代行した実績あり)。ダッシュボードでの手動設定が必要なのは主にAuth周りのURL Configuration(Site URL / Redirect URLs)。
+
+### `cloudflare-worker/` は廃止済み(削除はまだ)
+
+Web版のAI生成は当初Cloudflare Workerによる合言葉プロキシ方式だったが、Supabase Edge Functionに置き換えて廃止した。`worker.js`の先頭に廃止済みコメントがあるのみで、ディレクトリ自体はまだ削除していない(実際にデプロイ済みのWorkerを止める作業がユーザー側の`wrangler`権限で必要なため)。
+
+### Web版のデプロイ手順
+
+`gh-pages`ブランチは、`develop/v001`と共通祖先を持たない**orphanブランチ**で、`npx expo export --platform web`の出力(+ 上記の`viewport-fit`パッチ)だけを置く。手順:
+
+```
+cd RecipeKeeper
+npx expo export --platform web --clear
+# dist/index.html の viewport meta タグに viewport-fit=cover を追記
+git worktree add ../<temp-dir-name> gh-pages
+cd ../<temp-dir-name>
+# 既存の _expo/assets/favicon.ico/index.html/metadata.json を git rm -r してから dist の中身を丸ごとコピー
+git add -A && git commit -m "..." && git push origin gh-pages
+cd ../RecipeKeeper && git worktree remove ../<temp-dir-name> --force
+```
+
+`gh-pages`は普段チェックアウトして作業する場所ではない(過去に誤って作業ディレクトリをgh-pagesのままにして、`.wrangler`や`.expo`のキャッシュファイルを誤コミットした事故があった)。必ずworktreeで隔離すること。
 
 ## コーディング方針
 
-- 依存パッケージは最小限に保つ(expo-router, expo-image-picker, expo-image-manipulator, expo-file-system, expo-secure-store, @react-native-async-storage/async-storage 程度)。状態管理ライブラリやUIキットなど、React Contextで十分な範囲に新たな依存を増やさない。
+- 依存パッケージは最小限に保つ(expo-router, expo-image-picker, expo-image-manipulator, expo-file-system, expo-secure-store, @react-native-async-storage/async-storage 程度)。状態管理ライブラリやUIキットなど、React Contextで十分な範囲に新たな依存を増やさない。`@supabase/supabase-js`はWeb専用ファイルからしか参照しない前提で追加した例外(上記「プラットフォーム分岐の方式」参照)。
 - タブアイコンは絵文字(Text)で表現しており、`@expo/vector-icons` 等のアイコンライブラリは意図的に導入していない。
 - 写真は保存前に `photoStorage.saveCompressedPhoto` でリサイズ・JPEG圧縮してから保存する。新しい画像取り込み経路を追加する場合も同じ関数を通すこと。
 - コメントは最小限。「なぜ」を説明する一言コメントのみで、実装の説明コメントは書かない方針を踏襲する。
 
 ## 変更後の確認方法(このエージェント自身が実行できること)
 
-Mac/実機がなくても、このエージェントが実行できる検証は以下の2つ。コード変更後は必ず実行してから完了を報告すること。
+Mac/実機がなくても、このエージェントが実行できる検証は以下。コード変更後は必ず実行してから完了を報告すること。
 
 ```
 cd RecipeKeeper
-npx tsc --noEmit          # 型チェック
-npx expo export --platform ios   # Metroバンドルが通るか(importミス等の検出)
+npx tsc --noEmit                  # 型チェック(.web.tsxも同じコンパイル対象に含まれる)
+npx expo export --platform ios    # Metroバンドルが通るか(importミス等の検出)
+npx expo export --platform web    # Web版のビルド確認。.env変更後は必ず --clear を付ける
 ```
 
-実機での見た目や操作感の確認はユーザー側(Expo Goアプリ)でのみ可能。UIの見た目に関わる変更では、その旨を伝えること。
+Web版に変更が及ぶ場合、念のためiOS向けの出力(`.hbc`)を`grep`して、Web専用の識別子(テーブル名やSupabase関連の文字列など)が紛れ込んでいないかも確認するとよい(「Web版アーキテクチャ」の注意点2を参照)。
+
+実機・実ブラウザでの見た目や操作感の確認は、ネイティブはユーザー側(Expo Goアプリ)、Webはユーザー側の実ブラウザでのみ可能。UIの見た目に関わる変更では、その旨を伝えること。
 
 ## 既知の制限(README.mdより)
 
-- バックアップ機能なし(端末内のAsyncStorage/ファイルシステムのみ)。
-- 食材フィルタは文字列部分一致のみ、食材マスタの正規化はしていない。
-- AI生成はネットワーク必須、数秒〜十数秒かかる。
+- ネイティブ版はバックアップ機能なし(端末内のAsyncStorage/ファイルシステムのみ)。Web版はSupabaseにデータがあるためこの制限はない。
+- 食材フィルタは文字列部分一致のみ、食材マスタの正規化はしていない(ネイティブ・Web共通)。
+- AI生成はネットワーク必須、数秒〜十数秒かかる。Web版は1ユーザー1日5回までの制限あり(`ai_generation_usage`テーブル)、ネイティブ版は制限なし(自分のAPIキーを使うため)。
 - 手書きレシピは写真保存のみでOCR(文字起こし)は行わない。
-- IDは簡易生成(タイムスタンプ+乱数)。個人利用前提で、多人数同時利用は想定していない。
+- ネイティブ版のIDは簡易生成(タイムスタンプ+乱数)。個人利用前提で、多人数同時利用は想定していない。Web版はSupabaseのUUIDを使い、複数ユーザーを前提とする。

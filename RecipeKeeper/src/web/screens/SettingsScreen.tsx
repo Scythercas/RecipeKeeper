@@ -15,7 +15,9 @@ export default function SettingsScreen() {
   const { session } = useAuth();
   const [seasonings, setSeasonings] = useState<string[]>([]);
   const [newSeasoning, setNewSeasoning] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordUpdated, setPasswordUpdated] = useState(false);
@@ -24,14 +26,37 @@ export default function SettingsScreen() {
     loadDefaultSeasonings().then(setSeasonings);
   }, []);
 
+  const passwordMismatch =
+    confirmNewPassword.length > 0 && newPassword !== confirmNewPassword;
+  const canUpdatePassword =
+    currentPassword.length > 0 &&
+    newPassword.length >= 6 &&
+    newPassword === confirmNewPassword &&
+    !isUpdatingPassword;
+
+  function resetPasswordFields() {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+  }
+
   async function handleUpdatePassword() {
     setPasswordError(null);
     setPasswordUpdated(false);
+    if (!session?.user.email) return;
     setIsUpdatingPassword(true);
     try {
+      // supabase-jsに「現在のパスワードを検証するだけ」のAPIは無いため、
+      // 再ログインを本人確認として使う(成功すればセッションが更新される)。
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: session.user.email,
+        password: currentPassword,
+      });
+      if (verifyError) throw new Error('現在のパスワードが正しくありません。');
+
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      setNewPassword('');
+      resetPasswordFields();
       setPasswordUpdated(true);
     } catch (e) {
       setPasswordError(e instanceof Error ? e.message : String(e));
@@ -68,7 +93,20 @@ export default function SettingsScreen() {
         </Pressable>
       </Section>
 
-      <Section title="パスワードを更新" footer="6文字以上の新しいパスワードを入力してください。">
+      <Section title="パスワードを更新" footer="本人確認のため、現在のパスワードの入力が必要です。新しいパスワードは6文字以上にしてください。">
+        <TextInput
+          style={styles.addInput}
+          placeholder="現在のパスワード"
+          placeholderTextColor="#999"
+          value={currentPassword}
+          onChangeText={(text) => {
+            setCurrentPassword(text);
+            setPasswordUpdated(false);
+          }}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
         <TextInput
           style={styles.addInput}
           placeholder="新しいパスワード"
@@ -81,17 +119,30 @@ export default function SettingsScreen() {
           secureTextEntry
           autoCapitalize="none"
           autoCorrect={false}
+        />
+        <TextInput
+          style={styles.addInput}
+          placeholder="新しいパスワード(確認)"
+          placeholderTextColor="#999"
+          value={confirmNewPassword}
+          onChangeText={(text) => {
+            setConfirmNewPassword(text);
+            setPasswordUpdated(false);
+          }}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
           onSubmitEditing={handleUpdatePassword}
         />
+        {passwordMismatch && (
+          <Text style={styles.errorText}>新しいパスワードが一致しません</Text>
+        )}
         {passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
         {passwordUpdated && <Text style={styles.successText}>パスワードを更新しました</Text>}
         <Pressable
-          style={[
-            styles.addButtonFull,
-            (newPassword.length < 6 || isUpdatingPassword) && styles.addButtonDisabled,
-          ]}
+          style={[styles.addButtonFull, !canUpdatePassword && styles.addButtonDisabled]}
           onPress={handleUpdatePassword}
-          disabled={newPassword.length < 6 || isUpdatingPassword}
+          disabled={!canUpdatePassword}
         >
           <Text style={styles.addButtonText}>{isUpdatingPassword ? '更新中…' : '更新する'}</Text>
         </Pressable>
