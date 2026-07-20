@@ -1,25 +1,20 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Text } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform, Text } from 'react-native';
 
 function TabIcon({ emoji }: { emoji: string }) {
   return <Text style={{ fontSize: 20 }}>{emoji}</Text>;
 }
 
-export default function TabsLayout() {
-  const insets = useSafeAreaInsets();
-  // ホームインジケーター等のセーフエリア分を確保し、タブバーが画面最下端に
-  // 張り付いてタップしづらくなるのを防ぐ(Web版はブラウザがセーフエリアを
-  // 報告しない場合insetsが0になるが、その場合も最低限の余白は残す)。
-  const bottomPadding = Math.max(insets.bottom, 8);
+// ネイティブはReact Navigationのデフォルトが元々セーフエリアを正しく扱うため触らない。
+// Web版はブラウザのセーフエリア報告(env(safe-area-inset-bottom))が環境によって
+// 不安定で、動的に高さを変えるとタブバーが画面からはみ出すことがあったため、
+// 固定値の余白だけを追加する(はみ出しの心配がない代わりに端末ごとの最適値ではない)。
+const WEB_TAB_BAR_STYLE = Platform.OS === 'web' ? { height: 70, paddingBottom: 20, paddingTop: 6 } : undefined;
 
+export default function TabsLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        tabBarStyle: { height: 50 + bottomPadding, paddingBottom: bottomPadding, paddingTop: 6 },
-      }}
-    >
+    <Tabs screenOptions={{ tabBarStyle: WEB_TAB_BAR_STYLE }}>
       <Tabs.Screen
         name="index"
         options={{ title: 'レシピ', tabBarIcon: () => <TabIcon emoji="📖" /> }}
