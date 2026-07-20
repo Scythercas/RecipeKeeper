@@ -19,7 +19,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,6 +37,13 @@
           "cameraPermission": "手書きレシピや料理の写真を撮影するためにカメラを使用します。"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "deb72203-c7f4-42fd-8b1e-334925b86076"
+      }
+    },
+    "owner": "scythercas"
   }
 }
