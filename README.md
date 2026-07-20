@@ -1,6 +1,6 @@
-# RecipeKeeper — レシピ管理 iPhone アプリ
+# RecipeKeeper — レシピ管理アプリ
 
-Expo(React Native)製のレシピ管理アプリです。サーバー不要で、データはすべて端末内に保存されます(AIレシピ生成時のみAnthropic APIと通信します)。
+Expo(React Native)製のレシピ管理アプリです。iOS/Android実機に加えて、**Web版としてPC・スマホのブラウザからも利用できます**。サーバー不要で、データはすべて端末(またはブラウザ)内に保存されます(AIレシピ生成時のみAnthropic APIと通信します)。
 
 **Mac実機を持っていなくても開発・実機確認ができる構成**を前提にしています(詳細は後述)。
 
@@ -210,7 +210,43 @@ eas submit --platform android --latest
 
 ---
 
-## 4. 既知の制限・今後の改善候補
+## 4. Web版(PCブラウザ・スマホブラウザで使う)
+
+Expoは同じコードベースからWeb版もビルドできます(`react-native-web`)。ストア審査もインストールも不要で、URLを開くだけでPC・スマホどちらのブラウザからも使えます。
+
+### 4-1. ローカルで動作確認
+
+```
+cd RecipeKeeper
+npx expo start --web
+```
+
+ブラウザが自動で開きます。PC・スマホどちらのブラウザでも同じ画面が表示されます。
+
+### 4-2. GitHub Pagesへの自動デプロイ
+
+このリポジトリには `.github/workflows/deploy-web.yml` を用意済みです。`main` ブランチにpushすると自動的にWeb版をビルドし、GitHub Pagesに公開します。
+
+**有効化に必要な一回だけの手動設定**(GitHub側の設定変更のためこのエージェントからは実行できません):
+
+1. GitHubのリポジトリ → **Settings → Pages**
+2. 「Build and deployment」の **Source** を **GitHub Actions** に変更
+
+設定後、`main` にpushするたびに自動更新されます。公開URLは `https://<GitHubユーザー名>.github.io/<リポジトリ名>/` になります(例: `https://scythercas.github.io/RecipeKeeper/`)。
+
+`main` にマージする前に動作を試したい場合は、GitHubの **Actions** タブ → 「Deploy Web to GitHub Pages」→ **Run workflow** から任意のブランチ(`feature/init` など)で手動実行できます。
+
+### 4-3. Web版特有の制約・注意点
+
+Web(ブラウザ)はネイティブアプリと異なる制約があり、コード側で吸収していますが把握しておいてください。
+
+- **写真の保存方法が異なる**: ネイティブ版は写真を端末のファイルシステムに保存しますが、ブラウザにはその概念がないため、Web版では写真をBase64文字列としてブラウザの`localStorage`に直接保存します。`localStorage`は多くのブラウザで**オリジンごと5〜10MB程度の上限**があるため、写真を大量に登録すると保存に失敗することがあります。日常的な少数枚の利用では問題になりません。
+- **APIキーの保管方法が異なり、ネイティブ版より安全性が低い**: ネイティブ版はOSのKeychain/Keystoreで暗号化保存されますが、Webにはその仕組みがないため`localStorage`に平文で保存されます。**ブラウザの開発者ツール(Network/Applicationタブ)を開けば誰でもAPIキーを読み取れてしまいます。** 自分専用として手元でだけ使う分には問題ありませんが、GitHub Pagesで公開したURLを他人と共有し、かつそのURLからAPIキーを入力する運用は避けてください(見られたくないなら共有前に「設定」でAPIキーを削除するか、そもそもWeb版ではAI生成機能を使わない運用にしてください)。
+- ブラウザには実機のカメラ相当の機能がなく、「カメラ」ボタンはブラウザのカメラ機能(`getUserMedia`)を使う簡易的なものになります。PC環境ではカメラが無ければライブラリからの選択のみ使えます。
+
+---
+
+## 5. 既知の制限・今後の改善候補
 
 - **バックアップ**: データは端末内のAsyncStorage/ファイルシステムのみ。iPhoneのiCloudバックアップの範囲には含まれますが、機種変更時の明示的なエクスポート機能はありません。
 - **食材フィルタは文字列の部分一致**です。「鶏」で鶏もも・鶏むねに一致する半面、表記ゆれ(「たまねぎ/玉ねぎ」)は別物扱いになります。厳密にやるなら食材マスタの正規化が必要です。
@@ -224,6 +260,8 @@ eas submit --platform android --latest
 RecipeKeeper/
 ├── README.md                     ← このファイル
 ├── CLAUDE.md                     ← Claude Code向けの開発ガイド
+├── .github/workflows/
+│   └── deploy-web.yml            ← Web版をGitHub Pagesに自動デプロイするワークフロー
 └── RecipeKeeper/                 ← Expo(React Native)プロジェクトルート
     ├── app.json                  ← Expo設定(アプリ名・権限文言・プラグイン)
     ├── package.json

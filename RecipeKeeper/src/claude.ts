@@ -1,16 +1,29 @@
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 const API_KEY_STORE_KEY = 'anthropic_api_key';
 
+// expo-secure-store未対応のWebではlocalStorageで代替する(Keychain/Keystoreほどの安全性はない)
 export async function loadApiKey(): Promise<string | null> {
+  if (Platform.OS === 'web') {
+    return typeof localStorage !== 'undefined' ? localStorage.getItem(API_KEY_STORE_KEY) : null;
+  }
   return SecureStore.getItemAsync(API_KEY_STORE_KEY);
 }
 
 export async function saveApiKey(key: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    localStorage.setItem(API_KEY_STORE_KEY, key);
+    return;
+  }
   await SecureStore.setItemAsync(API_KEY_STORE_KEY, key);
 }
 
 export async function deleteApiKey(): Promise<void> {
+  if (Platform.OS === 'web') {
+    localStorage.removeItem(API_KEY_STORE_KEY);
+    return;
+  }
   await SecureStore.deleteItemAsync(API_KEY_STORE_KEY);
 }
 
@@ -72,6 +85,9 @@ ${params.requestNote || '特になし'}
       'content-type': 'application/json',
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
+      // Web(ブラウザ)からの直接呼び出しにはCORS許可のためこのヘッダーが必須。
+      // ネイティブではCORSの概念自体がないため付けても無害。
+      ...(Platform.OS === 'web' ? { 'anthropic-dangerous-direct-browser-access': 'true' } : {}),
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
