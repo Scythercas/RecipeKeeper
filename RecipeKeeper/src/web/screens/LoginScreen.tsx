@@ -38,6 +38,7 @@ export default function LoginScreen() {
       <TextInput
         style={styles.input}
         placeholder="メールアドレス"
+        placeholderTextColor="#999"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -47,6 +48,7 @@ export default function LoginScreen() {
       <TextInput
         style={styles.input}
         placeholder="パスワード"
+        placeholderTextColor="#999"
         value={password}
         onChangeText={setPassword}
         secureTextEntry

@@ -53,7 +53,13 @@ export default function RecipeForm({ initial, onSave }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Section title="基本情報">
-        <TextInput style={styles.input} placeholder="レシピ名" value={title} onChangeText={setTitle} />
+        <TextInput
+          style={styles.input}
+          placeholder="レシピ名"
+          placeholderTextColor="#999"
+          value={title}
+          onChangeText={setTitle}
+        />
         <View style={styles.genreRow}>
           {GENRES.map((g) => (
             <Pressable
@@ -70,6 +76,7 @@ export default function RecipeForm({ initial, onSave }: Props) {
         <TextInput
           style={styles.input}
           placeholder="参考サイトURL(任意)"
+          placeholderTextColor="#999"
           value={sourceURL}
           onChangeText={setSourceURL}
           autoCapitalize="none"
@@ -82,6 +89,7 @@ export default function RecipeForm({ initial, onSave }: Props) {
         <TextInput
           style={styles.textArea}
           placeholder={'例:\n鶏もも肉 300g\n玉ねぎ 1個'}
+          placeholderTextColor="#999"
           value={ingredientsText}
           onChangeText={setIngredientsText}
           multiline
@@ -92,6 +100,7 @@ export default function RecipeForm({ initial, onSave }: Props) {
         <TextInput
           style={styles.textArea}
           placeholder={'例:\n醤油 大さじ2\nみりん 大さじ1'}
+          placeholderTextColor="#999"
           value={seasoningsText}
           onChangeText={setSeasoningsText}
           multiline
@@ -102,6 +111,7 @@ export default function RecipeForm({ initial, onSave }: Props) {
         <TextInput
           style={styles.textArea}
           placeholder={'例:\n鶏肉を一口大に切る\nフライパンで焼く'}
+          placeholderTextColor="#999"
           value={stepsText}
           onChangeText={setStepsText}
           multiline
@@ -120,6 +130,7 @@ export default function RecipeForm({ initial, onSave }: Props) {
         <TextInput
           style={styles.textArea}
           placeholder="自由メモ"
+          placeholderTextColor="#999"
           value={memo}
           onChangeText={setMemo}
           multiline

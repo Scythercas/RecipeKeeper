@@ -160,6 +160,7 @@ export default function RecipeDetailScreen() {
             <TextInput
               style={styles.modalInput}
               placeholder="例: 砂糖を半分にして蜂蜜を追加"
+              placeholderTextColor="#999"
               value={tweak}
               onChangeText={setTweak}
               multiline

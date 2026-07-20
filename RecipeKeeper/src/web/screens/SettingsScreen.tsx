@@ -15,10 +15,30 @@ export default function SettingsScreen() {
   const { session } = useAuth();
   const [seasonings, setSeasonings] = useState<string[]>([]);
   const [newSeasoning, setNewSeasoning] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordUpdated, setPasswordUpdated] = useState(false);
 
   useEffect(() => {
     loadDefaultSeasonings().then(setSeasonings);
   }, []);
+
+  async function handleUpdatePassword() {
+    setPasswordError(null);
+    setPasswordUpdated(false);
+    setIsUpdatingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setNewPassword('');
+      setPasswordUpdated(true);
+    } catch (e) {
+      setPasswordError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  }
 
   function persist(next: string[]) {
     setSeasonings(next);
@@ -48,6 +68,35 @@ export default function SettingsScreen() {
         </Pressable>
       </Section>
 
+      <Section title="パスワードを更新" footer="6文字以上の新しいパスワードを入力してください。">
+        <TextInput
+          style={styles.addInput}
+          placeholder="新しいパスワード"
+          placeholderTextColor="#999"
+          value={newPassword}
+          onChangeText={(text) => {
+            setNewPassword(text);
+            setPasswordUpdated(false);
+          }}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          onSubmitEditing={handleUpdatePassword}
+        />
+        {passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
+        {passwordUpdated && <Text style={styles.successText}>パスワードを更新しました</Text>}
+        <Pressable
+          style={[
+            styles.addButtonFull,
+            (newPassword.length < 6 || isUpdatingPassword) && styles.addButtonDisabled,
+          ]}
+          onPress={handleUpdatePassword}
+          disabled={newPassword.length < 6 || isUpdatingPassword}
+        >
+          <Text style={styles.addButtonText}>{isUpdatingPassword ? '更新中…' : '更新する'}</Text>
+        </Pressable>
+      </Section>
+
       <Section title="常備調味料" footer="ここに登録した調味料は、AIレシピ生成時に「家にあるもの」として扱われます。">
         {seasonings.map((item) => (
           <View key={item} style={styles.seasoningRow}>
@@ -61,6 +110,7 @@ export default function SettingsScreen() {
           <TextInput
             style={styles.addInput}
             placeholder="例: 醤油、味噌、ごま油…"
+            placeholderTextColor="#999"
             value={newSeasoning}
             onChangeText={setNewSeasoning}
             onSubmitEditing={addSeasoning}
@@ -111,6 +161,14 @@ const styles = StyleSheet.create({
   footer: { fontSize: 12, color: '#999', lineHeight: 17 },
   accountEmail: { fontSize: 15 },
   signOutText: { color: '#ff3b30', fontSize: 14 },
+  errorText: { color: '#ff3b30', fontSize: 13 },
+  successText: { color: '#34c759', fontSize: 13 },
+  addButtonFull: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
   seasoningRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

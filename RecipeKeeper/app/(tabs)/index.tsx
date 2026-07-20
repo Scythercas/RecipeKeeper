@@ -84,6 +84,7 @@ export default function RecipeListScreen() {
       <TextInput
         style={styles.search}
         placeholder="レシピ名で検索"
+        placeholderTextColor="#999"
         value={searchText}
         onChangeText={setSearchText}
       />
@@ -106,6 +107,7 @@ export default function RecipeListScreen() {
       <TextInput
         style={styles.ingredientInput}
         placeholder="例: 鶏肉, なす"
+        placeholderTextColor="#999"
         value={ingredientFilter}
         onChangeText={setIngredientFilter}
       />

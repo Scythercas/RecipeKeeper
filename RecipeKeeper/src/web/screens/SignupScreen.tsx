@@ -55,6 +55,7 @@ export default function SignupScreen() {
       <TextInput
         style={styles.input}
         placeholder="メールアドレス"
+        placeholderTextColor="#999"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -64,6 +65,7 @@ export default function SignupScreen() {
       <TextInput
         style={styles.input}
         placeholder="パスワード(6文字以上)"
+        placeholderTextColor="#999"
         value={password}
         onChangeText={setPassword}
         secureTextEntry

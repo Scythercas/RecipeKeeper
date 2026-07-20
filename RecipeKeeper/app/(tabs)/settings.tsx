@@ -97,6 +97,7 @@ export default function SettingsScreen() {
           <TextInput
             style={styles.addInput}
             placeholder="例: 醤油、味噌、ごま油…"
+            placeholderTextColor="#999"
             value={newSeasoning}
             onChangeText={setNewSeasoning}
             onSubmitEditing={addSeasoning}
@@ -136,6 +137,7 @@ export default function SettingsScreen() {
               <TextInput
                 style={styles.addInput}
                 placeholder="プロキシURL(https://…workers.dev)"
+                placeholderTextColor="#999"
                 value={proxyUrlInput}
                 onChangeText={setProxyUrlInput}
                 autoCapitalize="none"
@@ -145,6 +147,7 @@ export default function SettingsScreen() {
                 <TextInput
                   style={styles.addInput}
                   placeholder="合言葉"
+                  placeholderTextColor="#999"
                   value={proxySecretInput}
                   onChangeText={setProxySecretInput}
                   autoCapitalize="none"
@@ -179,6 +182,7 @@ export default function SettingsScreen() {
               <TextInput
                 style={styles.addInput}
                 placeholder="sk-ant-… を貼り付け"
+                placeholderTextColor="#999"
                 value={apiKeyInput}
                 onChangeText={setApiKeyInput}
                 autoCapitalize="none"

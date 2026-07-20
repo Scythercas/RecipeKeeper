@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import AIUsageIndicator from '../../src/components/AIUsageIndicator';
 import { useRecipes } from '../../src/RecipesContext';
 import { generateRecipe, type GeneratedRecipe } from '../../src/claude';
 import { loadDefaultSeasonings } from '../../src/storage';
@@ -25,6 +26,7 @@ export default function AIGenerateScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [generated, setGenerated] = useState<GeneratedRecipe | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [usageRefreshKey, setUsageRefreshKey] = useState(0);
 
   useEffect(() => {
     loadDefaultSeasonings().then(setDefaultSeasonings);
@@ -51,6 +53,7 @@ export default function AIGenerateScreen() {
       setErrorMessage(e instanceof Error ? e.message : String(e));
     } finally {
       setIsLoading(false);
+      setUsageRefreshKey((k) => k + 1);
     }
   }
 
@@ -84,6 +87,7 @@ export default function AIGenerateScreen() {
         <TextInput
           style={styles.textArea}
           placeholder={'例:\n鶏むね肉\nキャベツ\nオイスターソース'}
+          placeholderTextColor="#999"
           value={ingredientsText}
           onChangeText={setIngredientsText}
           multiline
@@ -107,10 +111,13 @@ export default function AIGenerateScreen() {
         <TextInput
           style={styles.input}
           placeholder="例: さっぱりした味 / 15分以内 / 子ども向け"
+          placeholderTextColor="#999"
           value={requestNote}
           onChangeText={setRequestNote}
         />
       </Section>
+
+      <AIUsageIndicator refreshSignal={usageRefreshKey} />
 
       <Pressable
         style={[styles.generateButton, !canGenerate && styles.generateButtonDisabled]}

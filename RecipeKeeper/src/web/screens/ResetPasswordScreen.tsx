@@ -45,6 +45,7 @@ export default function ResetPasswordScreen() {
       <TextInput
         style={styles.input}
         placeholder="新しいパスワード(6文字以上)"
+        placeholderTextColor="#999"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
