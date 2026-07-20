@@ -1,7 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { deleteApiKey, loadApiKey, saveApiKey } from '../../src/claude';
+import {
+  deleteApiKey,
+  deleteProxyConfig,
+  loadApiKey,
+  loadProxyConfig,
+  saveApiKey,
+  saveProxyConfig,
+} from '../../src/claude';
 import { loadDefaultSeasonings, saveDefaultSeasonings } from '../../src/storage';
 
 const BASIC_SEASONINGS = [
@@ -15,10 +22,17 @@ export default function SettingsScreen() {
   const [newSeasoning, setNewSeasoning] = useState('');
   const [apiKeySaved, setApiKeySaved] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
+  const [proxyConfigured, setProxyConfigured] = useState(false);
+  const [proxyUrlInput, setProxyUrlInput] = useState('');
+  const [proxySecretInput, setProxySecretInput] = useState('');
 
   useEffect(() => {
     loadDefaultSeasonings().then(setSeasonings);
-    loadApiKey().then((key) => setApiKeySaved(!!key));
+    if (Platform.OS === 'web') {
+      loadProxyConfig().then((config) => setProxyConfigured(!!config));
+    } else {
+      loadApiKey().then((key) => setApiKeySaved(!!key));
+    }
   }, []);
 
   function persist(next: string[]) {
@@ -51,6 +65,21 @@ export default function SettingsScreen() {
   async function handleDeleteApiKey() {
     await deleteApiKey();
     setApiKeySaved(false);
+  }
+
+  async function handleSaveProxyConfig() {
+    const url = proxyUrlInput.trim();
+    const secret = proxySecretInput.trim();
+    if (!url || !secret) return;
+    await saveProxyConfig({ url, secret });
+    setProxyUrlInput('');
+    setProxySecretInput('');
+    setProxyConfigured(true);
+  }
+
+  async function handleDeleteProxyConfig() {
+    await deleteProxyConfig();
+    setProxyConfigured(false);
   }
 
   return (
@@ -90,35 +119,83 @@ export default function SettingsScreen() {
         </Section>
       )}
 
-      <Section title="Anthropic APIキー" footer="AIレシピ生成に必要です。console.anthropic.com で発行し、ここに貼り付けてください。キーは端末のSecure Storeに保存され、外部には送信されません(Anthropic APIへのリクエスト時のみ使用)。利用量に応じてAPI料金が発生します。">
-        {apiKeySaved ? (
-          <View>
-            <Text style={styles.apiSavedText}>✅ APIキー設定済み</Text>
-            <Pressable onPress={handleDeleteApiKey}>
-              <Text style={styles.deleteApiKeyText}>APIキーを削除</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <View style={styles.addRow}>
-            <TextInput
-              style={styles.addInput}
-              placeholder="sk-ant-… を貼り付け"
-              value={apiKeyInput}
-              onChangeText={setApiKeyInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry
-            />
-            <Pressable
-              style={[styles.addButton, !apiKeyInput.trim() && styles.addButtonDisabled]}
-              onPress={handleSaveApiKey}
-              disabled={!apiKeyInput.trim()}
-            >
-              <Text style={styles.addButtonText}>保存</Text>
-            </Pressable>
-          </View>
-        )}
-      </Section>
+      {Platform.OS === 'web' ? (
+        <Section
+          title="AI生成用プロキシ設定"
+          footer="Web版はブラウザに直接Anthropic APIキーを置きません。代わりに自分でデプロイしたプロキシ(cloudflare-worker/を参照)のURLと、プロキシ側に設定したのと同じ合言葉をここに登録してください。合言葉はこの端末のブラウザにのみ保存されます。"
+        >
+          {proxyConfigured ? (
+            <View>
+              <Text style={styles.apiSavedText}>✅ プロキシ設定済み</Text>
+              <Pressable onPress={handleDeleteProxyConfig}>
+                <Text style={styles.deleteApiKeyText}>設定を削除</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={{ gap: 8 }}>
+              <TextInput
+                style={styles.addInput}
+                placeholder="プロキシURL(https://…workers.dev)"
+                value={proxyUrlInput}
+                onChangeText={setProxyUrlInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <View style={styles.addRow}>
+                <TextInput
+                  style={styles.addInput}
+                  placeholder="合言葉"
+                  value={proxySecretInput}
+                  onChangeText={setProxySecretInput}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry
+                />
+                <Pressable
+                  style={[
+                    styles.addButton,
+                    (!proxyUrlInput.trim() || !proxySecretInput.trim()) && styles.addButtonDisabled,
+                  ]}
+                  onPress={handleSaveProxyConfig}
+                  disabled={!proxyUrlInput.trim() || !proxySecretInput.trim()}
+                >
+                  <Text style={styles.addButtonText}>保存</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </Section>
+      ) : (
+        <Section title="Anthropic APIキー" footer="AIレシピ生成に必要です。console.anthropic.com で発行し、ここに貼り付けてください。キーは端末のSecure Storeに保存され、外部には送信されません(Anthropic APIへのリクエスト時のみ使用)。利用量に応じてAPI料金が発生します。">
+          {apiKeySaved ? (
+            <View>
+              <Text style={styles.apiSavedText}>✅ APIキー設定済み</Text>
+              <Pressable onPress={handleDeleteApiKey}>
+                <Text style={styles.deleteApiKeyText}>APIキーを削除</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.addRow}>
+              <TextInput
+                style={styles.addInput}
+                placeholder="sk-ant-… を貼り付け"
+                value={apiKeyInput}
+                onChangeText={setApiKeyInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+              />
+              <Pressable
+                style={[styles.addButton, !apiKeyInput.trim() && styles.addButtonDisabled]}
+                onPress={handleSaveApiKey}
+                disabled={!apiKeyInput.trim()}
+              >
+                <Text style={styles.addButtonText}>保存</Text>
+              </Pressable>
+            </View>
+          )}
+        </Section>
+      )}
     </ScrollView>
   );
 }

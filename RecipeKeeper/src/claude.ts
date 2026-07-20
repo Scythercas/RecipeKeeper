@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 const API_KEY_STORE_KEY = 'anthropic_api_key';
@@ -12,6 +14,32 @@ export async function saveApiKey(key: string): Promise<void> {
 
 export async function deleteApiKey(): Promise<void> {
   await SecureStore.deleteItemAsync(API_KEY_STORE_KEY);
+}
+
+// Web版専用。expo-secure-storeはWebでは動作しない(Keychain/Keystore相当が存在しないため)ので、
+// 本物のAnthropicキーはブラウザに置かず、自前デプロイのプロキシ(cloudflare-worker/)経由で呼ぶ。
+// ここに保存するのは「プロキシのURL」と「プロキシに設定したのと同じ合言葉」のみ。
+const PROXY_URL_KEY = 'recipekeeper.proxyUrl.v1';
+const PROXY_SECRET_KEY = 'recipekeeper.proxySecret.v1';
+
+export type ProxyConfig = { url: string; secret: string };
+
+export async function loadProxyConfig(): Promise<ProxyConfig | null> {
+  const [url, secret] = await Promise.all([
+    AsyncStorage.getItem(PROXY_URL_KEY),
+    AsyncStorage.getItem(PROXY_SECRET_KEY),
+  ]);
+  if (!url || !secret) return null;
+  return { url, secret };
+}
+
+export async function saveProxyConfig(config: ProxyConfig): Promise<void> {
+  await AsyncStorage.setItem(PROXY_URL_KEY, config.url);
+  await AsyncStorage.setItem(PROXY_SECRET_KEY, config.secret);
+}
+
+export async function deleteProxyConfig(): Promise<void> {
+  await AsyncStorage.multiRemove([PROXY_URL_KEY, PROXY_SECRET_KEY]);
 }
 
 export type GeneratedRecipe = {
@@ -30,8 +58,13 @@ export async function generateRecipe(params: {
   defaultSeasonings: string[];
   requestNote: string;
 }): Promise<GeneratedRecipe> {
-  const apiKey = await loadApiKey();
-  if (!apiKey) {
+  const proxyConfig = Platform.OS === 'web' ? await loadProxyConfig() : null;
+  const apiKey = Platform.OS === 'web' ? null : await loadApiKey();
+
+  if (Platform.OS === 'web' && !proxyConfig) {
+    throw new ClaudeServiceError('プロキシ設定が未登録です。設定タブから登録してください。');
+  }
+  if (Platform.OS !== 'web' && !apiKey) {
     throw new ClaudeServiceError('APIキーが未設定です。設定タブから登録してください。');
   }
 
@@ -66,19 +99,30 @@ ${params.requestNote || '特になし'}
   "point": "ワンポイントアドバイス"
 }`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
-      messages: [{ role: 'user', content: prompt }],
-    }),
+  const requestBody = JSON.stringify({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1500,
+    messages: [{ role: 'user', content: prompt }],
   });
+
+  const response = proxyConfig
+    ? await fetch(proxyConfig.url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-app-secret': proxyConfig.secret,
+        },
+        body: requestBody,
+      })
+    : await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': apiKey as string,
+          'anthropic-version': '2023-06-01',
+        },
+        body: requestBody,
+      });
 
   if (!response.ok) {
     const detail = await response.text();
