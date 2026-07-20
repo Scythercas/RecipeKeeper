@@ -4,6 +4,8 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { supabase } from '../supabaseClient';
 
+const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL ?? '';
+
 export default function SignupScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -18,7 +20,11 @@ export default function SignupScreen() {
     setErrorMessage(null);
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({ email: email.trim(), password });
+      const { error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: { emailRedirectTo: SITE_URL },
+      });
       if (error) throw error;
       setIsDone(true);
     } catch (e) {
