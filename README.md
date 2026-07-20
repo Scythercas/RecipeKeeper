@@ -19,6 +19,7 @@ Expo(React Native)製のレシピ管理アプリです。サーバー不要で�
 - スマートフォン(iPhone/Android)+ **Expo Go** アプリ(App Store / Google Playで無料配布)
 - AI生成機能を使う場合: Anthropic APIキー(有料・従量課金)
 - 実機用の単独アプリ(TestFlight配布やApp Store公開)を作る場合のみ: Expoアカウント(無料)+ Apple Developer Program(年額$99、iOS配布時)
+- Google Playで公開する場合のみ: Google Play Consoleの開発者登録(**$25の一回払い**、年会費なし)
 
 **Macは一切不要です。** Windows/Linux上でExpo(マネージドワークフロー)を使い、日々の開発・動作確認は「Expo Go」アプリでのQRコードスキャンだけで完結します。TestFlight配布や実際のアプリとしてのビルドが必要になった場合も、Expoのクラウドビルドサービス(EAS Build)がリモートでiOSビルドを行うため、やはりMacは不要です。
 
@@ -123,9 +124,9 @@ TestFlightで配布するには Apple Developer Program(年額$99)への登録�
 
 以降、コードを更新するたびに `eas build` → `eas submit` を実行すればTestFlight経由で最新版が反映されます。
 
-### 3-3. Androidビルド(参考)
+### 3-3. Androidの簡易配布(参考、Google Playを使わない場合)
 
-Android実機への配布はさらに簡単です(Google Playの年会費もDeveloper Programのような縛りもありません)。
+家族に配るだけなど、Google Playを介さずAndroid実機にインストールしたいだけの場合はこちらが簡単です。
 
 ```
 eas build --platform android --profile preview
@@ -133,7 +134,74 @@ eas build --platform android --profile preview
 
 ビルドされた `.apk` のダウンロードリンクが発行されるので、Android端末でリンクを開いてそのままインストールできます(「提供元不明のアプリ」の許可が必要な場合があります)。
 
-### 3-4. App Store公開する場合
+### 3-4. Google Playへの公開
+
+Google Playストアで公開する場合の手順です。**この工程もすべてクラウド/ブラウザ上で完結し、Macはもちろん、Android実機やAndroid Studioも不要です。**
+
+#### 3-4-1. 事前準備
+
+1. **Google Play Consoleの開発者登録**: https://play.google.com/console/signup で登録(**個人開発者登録料として $25 の一回払い**が必要。以後の年会費はなし)。本人確認が入る場合があり、承認までに数日かかることがあります
+2. **パッケージ名を確定する**: `RecipeKeeper/app.json` の `expo.android.package` は現在 `"com.example.recipekeeper"` という仮の値になっています。**これはPlay Storeに一度公開すると二度と変更できない一意のIDなので、公開前に必ず自分用の値に書き換えてください**(例: `com.yourname.recipekeeper`。ピリオド区切りの英数字、世界で一意になる値)
+3. **プライバシーポリシーの用意**: Google Playは(カメラ権限を使うアプリを含め)ストア掲載情報として**プライバシーポリシーのURL**を必須で求めます。GitHub PagesやNotionの公開ページなどで簡単な文章を1枚用意し、公開URLを控えておいてください(「本アプリは全データを端末内に保存し、AIレシピ生成機能の利用時のみ入力内容をAnthropic社のAPIに送信します」程度の内容で構いません)
+
+#### 3-4-2. Android App Bundle(AAB)のビルド
+
+Play Storeへのアップロードには `.apk` ではなく `.aab`(Android App Bundle)形式が必須です。`eas build:configure`(3-1)で生成される `eas.json` の `production` プロファイルはデフォルトで `.aab` を出力するようになっています。
+
+```
+cd RecipeKeeper
+eas build --platform android --profile production
+```
+
+初回ビルド時にアップロード用の署名鍵の扱いを聞かれますが、**「Generate new keystore」(EASにおまかせ)を選べば、鍵の管理も含めてEAS側がクラウドで安全に保管してくれます**(自分で `keytool` 等を扱う必要はありません)。
+
+#### 3-4-3. Play Consoleでのアプリ作成とストア掲載情報の登録
+
+1. Play Console → **アプリを作成** → アプリ名・言語・アプリかゲームか・無料か有料かを入力
+2. 左メニューの「アプリのコンテンツ」で以下を順に埋める(すべて必須):
+   - プライバシー ポリシー(3-4-1で用意したURL)
+   - アプリのアクセス権(ログイン不要ならその旨を選択)
+   - 広告の有無
+   - コンテンツのレーティング(質問票に回答すると自動判定される)
+   - **データセーフティ**: 「カメラでの写真撮影」「端末内保存のみで外部送信なし(AI生成機能利用時のみAnthropic APIにテキストを送信)」といった実態に沿って回答
+3. 左メニューの「メインのストアの掲載情報」でアイコン・スクリーンショット(最低2枚、実機かシミュレータのスクリーンショットで可)・簡単な説明文・詳しい説明文を登録
+
+#### 3-4-4. ビルドの提出
+
+**方法A: `eas submit` で自動アップロード(推奨)**
+
+初回のみ、Play Console APIと連携するためのサービスアカウントの設定が必要です(Play Console → 設定 → APIアクセス → サービスアカウントを作成し、JSON鍵をダウンロード)。
+
+```
+eas submit --platform android --latest
+```
+
+初回実行時にサービスアカウントJSON鍵のパスを聞かれるので、ダウンロードしたファイルを指定してください。
+
+**方法B: 手動アップロード**
+
+`eas build` の完了後に表示される `.aab` のダウンロードリンクから取得し、Play Consoleの「テスト」→「内部テスト」(または本番)画面から手動でアップロードすることもできます。
+
+#### 3-4-5. テストトラックと本番リリース
+
+Google Playでは**いきなり本番公開はできず、テストトラックを経由するのが基本**です。
+
+1. まずは「内部テスト」トラックにアップロードし、自分のGoogleアカウントをテスターに追加して動作確認
+2. 新規のPlay Console個人アカウントの場合、本番公開の申請には**一定人数のテスターによる一定期間の「クローズドテスト」実施が条件**として課されることがあります(必要人数・期間はGoogleのポリシー変更が多いため、Play Console上の「本番環境へのアクセス」画面に表示される最新の要件を必ず確認してください)
+3. 条件を満たしたら「本番」トラックで公開申請 → 審査(通常数時間〜数日)
+
+#### 3-4-6. 公開後のアップデート
+
+コードを変更したら、バージョンコードの手動管理を避けるため `eas.json` の `"cli": { "appVersionSource": "remote" }` 設定(`eas build:configure` で自動設定されます)を使い、以下を繰り返すだけで更新できます。
+
+```
+eas build --platform android --profile production
+eas submit --platform android --latest
+```
+
+**公開前に必ずセクション2の「コストと注意点」を再確認してください。** 個人のAnthropic APIキーをアプリに含めたままGoogle Playで一般公開するのは、キーの抽出・不正利用リスクがあるため推奨しません。公開する場合は自前のバックエンド経由でAPIを呼ぶ構成に変更するか、AI生成機能を無効化した状態で公開することを検討してください。
+
+### 3-5. App Store公開する場合
 
 1. `eas build --platform ios --profile production` → `eas submit` でアップロード
 2. App Store Connect でスクリーンショット、説明文、プライバシー情報を登録
