@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "RecipeKeeper",
+    "slug": "recipekeeper",
+    "scheme": "recipekeeper",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.example.recipekeeper"
+    },
+    "android": {
+      "package": "com.example.recipekeeper",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "experiments": {
+      "baseUrl": "/RecipeKeeper"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "手書きレシピや完成写真をライブラリから選択するために使用します。",
+          "cameraPermission": "手書きレシピや料理の写真を撮影するためにカメラを使用します。"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "deb72203-c7f4-42fd-8b1e-334925b86076"
+      }
+    },
+    "owner": "scythercas"
+  }
+}
