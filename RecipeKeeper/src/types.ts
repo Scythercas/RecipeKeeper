@@ -29,6 +29,7 @@ export type Recipe = {
   dishPhotos: string[]; // ローカルファイルURI
   handwrittenPhotos: string[]; // ローカルファイルURI
   cookLogs: CookLog[];
+  rating: number | null; // 10点満点の採点。未評価はnull
 };
 
 export function cookCount(recipe: Recipe): number {

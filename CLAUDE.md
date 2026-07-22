@@ -56,7 +56,8 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
 
 ### データモデル(src/types.ts)
 
-- `Recipe`: title / genre / sourceURL / ingredients / seasonings / steps / memo / isAIGenerated / createdAt / dishPhotos(完成写真のファイルURI配列)/ handwrittenPhotos(手書きレシピのファイルURI配列)/ cookLogs(調理記録の配列)。SwiftData版と異なり、1つのJSONオブジェクトとしてAsyncStorageにまるごと保存する(正規化していない)。
+- `Recipe`: title / genre / sourceURL / ingredients / seasonings / steps / memo / isAIGenerated / createdAt / dishPhotos(完成写真のファイルURI配列)/ handwrittenPhotos(手書きレシピのファイルURI配列)/ cookLogs(調理記録の配列)/ rating(10点満点の採点、未評価は`null`)。SwiftData版と異なり、1つのJSONオブジェクトとしてAsyncStorageにまるごと保存する(正規化していない)。
+- `rating`は`RecipeForm`(新規作成・編集画面で共通)からのみ更新する。一覧画面の並び替えで「評価順」を選ぶと`rating`降順(未評価は最後)でソートする。Web版は`recipes`テーブルに`rating int check (rating between 1 and 10)`列を追加済み(2026年7月、`supabase db query --linked`で直接ALTER TABLEを実行、マイグレーションファイルは作成していない)。
 - `CookLog`: `{ id, date, tweak }`。`cookCount(recipe)` / `lastCooked(recipe)` はSwiftData版の計算プロパティに相当するヘルパー関数。
 - `GENRES` は固定の文字列配列だが、`Recipe.genre` は自由文字列としても保存されるため、配列にない値も許容される(AI生成結果や過去データとの互換性のため)。
 
@@ -93,6 +94,8 @@ Metro/Expo Routerは`foo.web.tsx`という同名ファイルをWebビルド時�
 
 新しい `src/web/` ディレクトリに、Web専用のヘルパー(`supabaseClient.ts`, `AuthContext.tsx`, `recipeMappers.ts`)と、実際の画面コンポーネント(`src/web/screens/*.tsx`)が入っている。
 
+`src/web/screens/SignupScreen.tsx` はアカウント登録の入り口として、機能説明・イラスト付きのマーケティング的なレイアウト(2026年7月追加)。イラストは画像アセットを追加せず、既存の「タブアイコンは絵文字」方針を踏襲して絵文字とViewの組み合わせだけで表現している(散らばった情報源→1つのカードに集約、という構図)。`useWindowDimensions`で幅860px以上なら2カラム(左に訴求文・右にフォーム)、それ未満は縦積みに切り替える。この画面だけ内容が長くなるため`ScrollView`で包んでいる(他のログイン系画面は短いため素の`View`のまま)。
+
 ### ⚠️ `app/` 配下のルートファイルには要注意(このハマりどころに時間を使ったので必ず読むこと)
 
 `src/`配下の普通のimportは`.web.ts(x)`の自動解決が問題なく効く(検証済み: ネイティブのbundleに`expo-secure-store`の文字列が一切含まれないことをgrepで確認済み)。しかし **`app/`配下の「ルートファイル」は挙動が異なる**:
@@ -104,7 +107,7 @@ Metro/Expo Routerは`foo.web.tsx`という同名ファイルをWebビルド時�
 
 ### Supabaseスキーマ・設定
 
-- テーブル: `recipes`, `cook_logs`(`user_id`で所有者を持ちRLSで分離), `ai_generation_usage`(1ユーザー1日ごとの生成回数。`try_consume_ai_generation` SECURITY DEFINER関数経由でのみ加算でき、`ai_generation_usage_owner_select`ポリシーで本人だけ閲覧可)。
+- テーブル: `recipes`(`rating int check (rating between 1 and 10)`列を含む、未評価は`NULL`), `cook_logs`(`user_id`で所有者を持ちRLSで分離), `ai_generation_usage`(1ユーザー1日ごとの生成回数。`try_consume_ai_generation` SECURITY DEFINER関数経由でのみ加算でき、`ai_generation_usage_owner_select`ポリシーで本人だけ閲覧可)。
 - Storage: `recipe-photos`バケット(公開・パスは`${user_id}/${filename}.jpg`というフラット構成。レシピID単位にしていないのは、新規レシピ作成時点ではレシピIDがまだ確定していないため)。
 - Edge Function: `supabase/functions/generate-recipe/`。JWT検証 → レート制限判定 → プロンプト構築 → Anthropic呼び出し、を一括で行う。`ANTHROPIC_API_KEY`と`DAILY_AI_LIMIT`をシークレットとして保持。
 - ローカルでのSupabase CLI操作(`supabase secrets set` / `supabase functions deploy` / `supabase db query --linked`でのSQL実行等)は`supabase login`のブラウザ認証さえ済んでいれば、このエージェントが直接実行できる(実際にRLSポリシー追加などを代行した実績あり)。ダッシュボードでの手動設定が必要なのは主にAuth周りのURL Configuration(Site URL / Redirect URLs)。

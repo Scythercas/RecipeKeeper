@@ -22,6 +22,7 @@ export type RecipeRow = {
   dish_photos: string[] | null;
   handwritten_photos: string[] | null;
   created_at: string;
+  rating: number | null;
   cook_logs?: CookLogRow[] | null;
 };
 
@@ -44,6 +45,7 @@ export function mapRecipeRow(row: RecipeRow): Recipe {
     dishPhotos: row.dish_photos ?? [],
     handwrittenPhotos: row.handwritten_photos ?? [],
     cookLogs: (row.cook_logs ?? []).map(mapCookLogRow),
+    rating: row.rating,
   };
 }
 
@@ -60,5 +62,6 @@ export function mapNewRecipeInputToInsert(input: NewRecipeInput, userId: string)
     is_ai_generated: input.isAIGenerated,
     dish_photos: input.dishPhotos,
     handwritten_photos: input.handwrittenPhotos,
+    rating: input.rating,
   };
 }

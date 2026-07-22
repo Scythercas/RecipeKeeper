@@ -71,6 +71,7 @@ export default function AIGenerateScreen() {
         isAIGenerated: true,
         dishPhotos: [],
         handwrittenPhotos: [],
+        rating: null,
       });
       Alert.alert('レシピに保存しました');
       setGenerated(null);

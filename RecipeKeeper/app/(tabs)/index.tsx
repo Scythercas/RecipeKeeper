@@ -7,11 +7,12 @@ import RecipeRow from '../../src/components/RecipeRow';
 import { useRecipes } from '../../src/RecipesContext';
 import { cookCount, type Recipe } from '../../src/types';
 
-type SortOrder = 'newest' | 'mostCooked' | 'title';
+type SortOrder = 'newest' | 'mostCooked' | 'rating' | 'title';
 
 const SORT_LABELS: Record<SortOrder, string> = {
   newest: '新しい順',
   mostCooked: '作った回数順',
+  rating: '評価順',
   title: '名前順',
 };
 
@@ -71,6 +72,9 @@ export default function RecipeListScreen() {
         break;
       case 'mostCooked':
         sorted.sort((a, b) => cookCount(b) - cookCount(a));
+        break;
+      case 'rating':
+        sorted.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
         break;
       case 'title':
         sorted.sort((a, b) => a.title.localeCompare(b.title, 'ja'));
@@ -179,7 +183,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  sortRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginTop: 8 },
+  sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16, marginTop: 8 },
   sortButton: { paddingVertical: 4 },
   sortLabel: { fontSize: 12, color: '#999' },
   sortLabelActive: { color: '#007AFF', fontWeight: '600' },

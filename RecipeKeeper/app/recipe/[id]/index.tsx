@@ -74,7 +74,10 @@ export default function RecipeDetailScreen() {
         <View style={styles.section}>
           <View style={styles.metaRow}>
             <Text style={styles.genreBadge}>{recipe.genre}</Text>
-            <Text style={styles.cookCountText}>🔥 {cookCount(recipe)}回作った</Text>
+            <View style={styles.metaRightGroup}>
+              {recipe.rating !== null && <Text style={styles.ratingText}>⭐ {recipe.rating} / 10</Text>}
+              <Text style={styles.cookCountText}>🔥 {cookCount(recipe)}回作った</Text>
+            </View>
           </View>
           {recipe.sourceURL.length > 0 && (
             <Pressable onPress={() => Linking.openURL(recipe.sourceURL)}>
@@ -202,6 +205,8 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 16, paddingVertical: 12, gap: 6, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#eee' },
   sectionTitle: { fontSize: 13, color: '#666', fontWeight: '600', marginBottom: 4 },
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  metaRightGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  ratingText: { color: '#b8860b', fontWeight: '600' },
   genreBadge: {
     fontSize: 13,
     backgroundColor: '#f0f0f0',
