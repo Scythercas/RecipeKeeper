@@ -13,18 +13,22 @@ import {
 } from 'react-native';
 
 import PhotoCarousel from '../../../src/components/PhotoCarousel';
+import RatingPicker from '../../../src/components/RatingPicker';
 import { useRecipe, useRecipes } from '../../../src/RecipesContext';
+import { useToast } from '../../../src/ToastContext';
 import { cookCount } from '../../../src/types';
 
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const recipe = useRecipe(id);
-  const { addCookLog, deleteCookLog } = useRecipes();
+  const { addCookLog, deleteCookLog, rateRecipe } = useRecipes();
+  const { showToast } = useToast();
   const navigation = useNavigation();
   const router = useRouter();
 
   const [showCookModal, setShowCookModal] = useState(false);
   const [tweak, setTweak] = useState('');
+  const [modalRating, setModalRating] = useState<number | null>(null);
 
   useLayoutEffect(() => {
     if (!recipe) return;
@@ -46,11 +50,21 @@ export default function RecipeDetailScreen() {
     );
   }
 
+  function openCookModal() {
+    setTweak('');
+    setModalRating(recipe!.rating);
+    setShowCookModal(true);
+  }
+
   async function recordCook() {
     try {
       await addCookLog(recipe!.id, tweak.trim());
+      if (modalRating !== recipe!.rating) {
+        await rateRecipe(recipe!.id, modalRating);
+      }
       setTweak('');
       setShowCookModal(false);
+      showToast('調理を記録しました');
     } catch (e) {
       Alert.alert('記録に失敗しました', e instanceof Error ? e.message : String(e));
     }
@@ -59,6 +73,7 @@ export default function RecipeDetailScreen() {
   async function removeCookLog(cookLogId: string) {
     try {
       await deleteCookLog(recipe!.id, cookLogId);
+      showToast('記録を削除しました');
     } catch (e) {
       Alert.alert('削除に失敗しました', e instanceof Error ? e.message : String(e));
     }
@@ -144,13 +159,7 @@ export default function RecipeDetailScreen() {
       </ScrollView>
 
       <View style={styles.cookButtonBar}>
-        <Pressable
-          style={styles.cookButton}
-          onPress={() => {
-            setTweak('');
-            setShowCookModal(true);
-          }}
-        >
+        <Pressable style={styles.cookButton} onPress={openCookModal}>
           <Text style={styles.cookButtonText}>🍳 作った！</Text>
         </Pressable>
       </View>
@@ -159,6 +168,8 @@ export default function RecipeDetailScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
             <Text style={styles.modalTitle}>調理を記録</Text>
+            <Text style={styles.modalLabel}>評価(任意)</Text>
+            <RatingPicker rating={modalRating} onChange={setModalRating} />
             <Text style={styles.modalLabel}>今回の工夫(任意)</Text>
             <TextInput
               style={styles.modalInput}

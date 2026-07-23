@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { GENRES } from '../types';
 import type { NewRecipeInput, Recipe } from '../types';
 import PhotoAttachEditor from './PhotoAttachEditor';
+import RatingPicker from './RatingPicker';
 
 function linesToList(text: string): string[] {
   return text
@@ -88,22 +89,7 @@ export default function RecipeForm({ initial, onSave }: Props) {
       </Section>
 
       <Section title="評価(10点満点)">
-        <View style={styles.ratingRow}>
-          {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-            <Pressable
-              key={n}
-              onPress={() => setRating(rating === n ? null : n)}
-              style={[styles.ratingChip, rating !== null && rating >= n && styles.ratingChipSelected]}
-            >
-              <Text style={[styles.ratingChipText, rating !== null && rating >= n && styles.ratingChipTextSelected]}>
-                {n}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <Text style={styles.ratingSummary}>
-          {rating !== null ? `${rating} / 10点` : '未評価(タップして採点)'}
-        </Text>
+        <RatingPicker rating={rating} onChange={setRating} />
       </Section>
 
       <Section title="食材(1行に1つ)">
@@ -206,19 +192,6 @@ const styles = StyleSheet.create({
   genreChipSelected: { backgroundColor: '#007AFF' },
   genreChipText: { fontSize: 13, color: '#333' },
   genreChipTextSelected: { color: 'white' },
-  ratingRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  ratingChip: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#eee',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ratingChipSelected: { backgroundColor: '#ffb300' },
-  ratingChipText: { fontSize: 13, color: '#333' },
-  ratingChipTextSelected: { color: 'white', fontWeight: '700' },
-  ratingSummary: { fontSize: 13, color: '#666' },
   saveButton: {
     backgroundColor: '#007AFF',
     borderRadius: 10,

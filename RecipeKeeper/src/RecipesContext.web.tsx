@@ -20,6 +20,7 @@ type RecipesContextValue = {
   deleteRecipe: (id: string) => Promise<void>;
   addCookLog: (recipeId: string, tweak: string) => Promise<void>;
   deleteCookLog: (recipeId: string, cookLogId: string) => Promise<void>;
+  rateRecipe: (id: string, rating: number | null) => Promise<void>;
 };
 
 const RecipesContext = createContext<RecipesContextValue | null>(null);
@@ -122,9 +123,15 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const rateRecipe = useCallback(async (id: string, rating: number | null): Promise<void> => {
+    const { error } = await supabase.from('recipes').update({ rating }).eq('id', id);
+    if (error) throw new Error(error.message);
+    setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, rating } : r)));
+  }, []);
+
   return (
     <RecipesContext.Provider
-      value={{ recipes, isLoaded, addRecipe, updateRecipe, deleteRecipe, addCookLog, deleteCookLog }}
+      value={{ recipes, isLoaded, addRecipe, updateRecipe, deleteRecipe, addCookLog, deleteCookLog, rateRecipe }}
     >
       {children}
     </RecipesContext.Provider>

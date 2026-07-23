@@ -4,12 +4,14 @@ import { Alert, Text } from 'react-native';
 
 import RecipeForm from '../../../src/components/RecipeForm';
 import { useRecipe, useRecipes } from '../../../src/RecipesContext';
+import { useToast } from '../../../src/ToastContext';
 import type { NewRecipeInput } from '../../../src/types';
 
 export default function EditRecipeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const recipe = useRecipe(id);
   const { updateRecipe } = useRecipes();
+  const { showToast } = useToast();
   const router = useRouter();
 
   if (!recipe) {
@@ -19,6 +21,7 @@ export default function EditRecipeScreen() {
   async function handleSave(input: NewRecipeInput) {
     try {
       await updateRecipe(recipe!.id, input);
+      showToast('レシピを更新しました');
       router.back();
     } catch (e) {
       Alert.alert('更新に失敗しました', e instanceof Error ? e.message : String(e));

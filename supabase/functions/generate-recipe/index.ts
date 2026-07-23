@@ -118,7 +118,9 @@ ${requestNote || '特になし'}
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      // 定型のJSON出力タスクなので、Sonnet相当より軽量・高速なHaikuで十分な品質が出る。
+      // 生成が遅いという指摘を受けての変更(2026年7月)。
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }],
     }),

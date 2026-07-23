@@ -44,11 +44,14 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
     ├── photoStorage.ts           写真のリサイズ・JPEG圧縮・永続ディレクトリへの保存
     ├── claude.ts                 Anthropic Messages API直呼び出し + expo-secure-store
     ├── RecipesContext.tsx        レシピCRUDを提供するReact Context(useRecipes/useRecipe)
+    ├── ToastContext.tsx          操作結果を伝える一時的なトースト通知(useToast)。ネイティブ・Web共通
     └── components/
         ├── RecipeForm.tsx        新規/編集で共有するフォーム本体
         ├── PhotoAttachEditor.tsx 写真の追加(ライブラリ/カメラ)・削除・圧縮呼び出し
         ├── PhotoCarousel.tsx     詳細画面での写真横スクロール表示
         ├── RecipeRow.tsx         一覧の1行
+        ├── SwipeableRow.tsx      一覧行を左スワイプで削除ボタンを表示するラッパー
+        ├── RatingPicker.tsx      1〜10点の採点チップ(RecipeForm・調理記録モーダルで共有)
         └── FilterChip.tsx        ジャンル選択チップ
 ```
 
@@ -57,7 +60,7 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
 ### データモデル(src/types.ts)
 
 - `Recipe`: title / genre / sourceURL / ingredients / seasonings / steps / memo / isAIGenerated / createdAt / dishPhotos(完成写真のファイルURI配列)/ handwrittenPhotos(手書きレシピのファイルURI配列)/ cookLogs(調理記録の配列)/ rating(10点満点の採点、未評価は`null`)。SwiftData版と異なり、1つのJSONオブジェクトとしてAsyncStorageにまるごと保存する(正規化していない)。
-- `rating`は`RecipeForm`(新規作成・編集画面で共通)からのみ更新する。一覧画面の並び替えで「評価順」を選ぶと`rating`降順(未評価は最後)でソートする。Web版は`recipes`テーブルに`rating int check (rating between 1 and 10)`列を追加済み(2026年7月、`supabase db query --linked`で直接ALTER TABLEを実行、マイグレーションファイルは作成していない)。
+- `rating`は`RecipeForm`(新規作成・編集画面で共通)、または詳細画面の「作った!」記録モーダルから更新できる(どちらも`src/components/RatingPicker.tsx`を共有)。モーダル側は`RecipesContext.rateRecipe(id, rating)`で単独更新し、調理記録の追加(`addCookLog`)とは別のAPI呼び出しになる。一覧画面の並び替えで「評価順」を選ぶと`rating`降順(未評価は最後)でソートする。Web版は`recipes`テーブルに`rating int check (rating between 1 and 10)`列を追加済み(2026年7月、`supabase db query --linked`で直接ALTER TABLEを実行、マイグレーションファイルは作成していない)。
 - `CookLog`: `{ id, date, tweak }`。`cookCount(recipe)` / `lastCooked(recipe)` はSwiftData版の計算プロパティに相当するヘルパー関数。
 - `GENRES` は固定の文字列配列だが、`Recipe.genre` は自由文字列としても保存されるため、配列にない値も許容される(AI生成結果や過去データとの互換性のため)。
 
@@ -70,7 +73,7 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
 ### AI生成(src/claude.ts)
 
 - `fetch` で `https://api.anthropic.com/v1/messages` を直接叩く実装(公式SDKは使っていない、Swift版と同じ方針)。
-- リクエストボディの `model` は現在 `"claude-sonnet-4-6"` にハードコードされている。**Anthropicのモデル名は変更されるため、AI生成機能が失敗する場合はまずこの文字列が現行の正式なモデルIDと一致しているか確認すること。**
+- リクエストボディの `model` は現在 `"claude-haiku-4-5-20251001"` にハードコードされている(`src/claude.ts`とWeb版の`supabase/functions/generate-recipe/index.ts`の両方で同じ文字列を使う)。**Anthropicのモデル名は変更されるため、AI生成機能が失敗する場合はまずこの文字列が現行の正式なモデルIDと一致しているか確認すること。** 元は`claude-sonnet-4-6`だったが、定型のJSON出力タスクである割に生成が遅いという指摘を受け、2026年7月にHaiku系(軽量・高速)へ変更した。Web版はコード変更後に`supabase functions deploy generate-recipe`での再デプロイが必要(Edge Function側は自動デプロイされない)。
 - レスポンスは「JSONのみを出力せよ」という指示でプロンプト側から制御しており、Structured Outputs等の機構は使っていない。コードブロック記号が混入した場合の簡易除去処理あり。
 - APIキーは `expo-secure-store` 経由で保存(iOSのKeychain/AndroidのKeystoreに相当)。`AsyncStorage`には保存しない。新しく秘密情報を扱うコードを追加する場合も同様の方針を守ること。
 
@@ -128,9 +131,15 @@ npx expo export --platform web --clear
 #   2. <style id="expo-reset"> 内の html,body,#root の height:100% の直後に height:100dvh を追記
 #      (モバイルSafariは100%/100vhがアドレスバー分を考慮しないため、タブバー等が
 #       画面下端で見切れる原因になる。100dvhは実際に見えている範囲を正しく反映する)
+cp dist/index.html dist/404.html
+# ↑ GitHub Pagesは/RecipeKeeper/settingsのような直接URL(ブックマーク・リロード・
+#   他サイトからのリンク)に対応する物理ファイルが無いため素で404を返す。SPA(このアプリ)
+#   はクライアント側ルーティングなので、404.htmlをindex.htmlと同一内容にしておけば
+#   GitHub Pagesがそれを返し、その後はexpo-routerがwindow.location.pathnameを見て
+#   正しい画面を描画する(2026年7月導入)。index.htmlを更新したら404.htmlも必ず同期すること。
 git worktree add ../<temp-dir-name> gh-pages
 cd ../<temp-dir-name>
-# 既存の _expo/assets/favicon.ico/index.html/metadata.json を git rm -r してから dist の中身を丸ごとコピー
+# 既存の _expo/assets/favicon.ico/index.html/404.html/metadata.json を git rm -r してから dist の中身を丸ごとコピー
 git add -A && git commit -m "..." && git push origin gh-pages
 cd ../RecipeKeeper && git worktree remove ../<temp-dir-name> --force
 ```
@@ -140,6 +149,8 @@ cd ../RecipeKeeper && git worktree remove ../<temp-dir-name> --force
 ## コーディング方針
 
 - 依存パッケージは最小限に保つ(expo-router, expo-image-picker, expo-image-manipulator, expo-file-system, expo-secure-store, @react-native-async-storage/async-storage 程度)。状態管理ライブラリやUIキットなど、React Contextで十分な範囲に新たな依存を増やさない。`@supabase/supabase-js`はWeb専用ファイルからしか参照しない前提で追加した例外(上記「プラットフォーム分岐の方式」参照)。
+- `src/components/SwipeableRow.tsx`(一覧のスワイプ削除)は`react-native-gesture-handler`を追加せず、React Native本体の`PanResponder`だけで実装している(依存追加を避ける方針のため)。`onMoveShouldSetPanResponder`で横方向の動きだけを拾うことで、素早いタップは下の`Pressable`にそのまま素通りする。
+- ユーザー操作の結果は`src/ToastContext.tsx`の`useToast().showToast(message)`で一時的なトースト通知として伝える(2026年7月導入)。保存・削除・調理記録など「画面遷移や一覧の見た目だけでは伝わりにくい操作」に使う。エラーは従来どおり`Alert.alert`(明示的な確認が必要なため)、成功はトースト、と使い分ける。
 - タブアイコンは絵文字(Text)で表現しており、`@expo/vector-icons` 等のアイコンライブラリは意図的に導入していない。
 - 写真は保存前に `photoStorage.saveCompressedPhoto` でリサイズ・JPEG圧縮してから保存する。新しい画像取り込み経路を追加する場合も同じ関数を通すこと。
 - コメントは最小限。「なぜ」を説明する一言コメントのみで、実装の説明コメントは書かない方針を踏襲する。

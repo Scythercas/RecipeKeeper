@@ -1,10 +1,12 @@
-import { Link, useNavigation, useRouter } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 import React, { useLayoutEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import FilterChip from '../../src/components/FilterChip';
 import RecipeRow from '../../src/components/RecipeRow';
+import SwipeableRow from '../../src/components/SwipeableRow';
 import { useRecipes } from '../../src/RecipesContext';
+import { useToast } from '../../src/ToastContext';
 import { cookCount, type Recipe } from '../../src/types';
 
 type SortOrder = 'newest' | 'mostCooked' | 'rating' | 'title';
@@ -17,7 +19,8 @@ const SORT_LABELS: Record<SortOrder, string> = {
 };
 
 export default function RecipeListScreen() {
-  const { recipes } = useRecipes();
+  const { recipes, deleteRecipe } = useRecipes();
+  const { showToast } = useToast();
   const router = useRouter();
   const navigation = useNavigation();
 
@@ -25,6 +28,18 @@ export default function RecipeListScreen() {
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [ingredientFilter, setIngredientFilter] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
+  const [openRowId, setOpenRowId] = useState<string | null>(null);
+
+  async function handleDelete(recipe: Recipe) {
+    try {
+      await deleteRecipe(recipe.id);
+      showToast('レシピを削除しました');
+    } catch (e) {
+      Alert.alert('削除に失敗しました', e instanceof Error ? e.message : String(e));
+    } finally {
+      setOpenRowId(null);
+    }
+  }
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -141,11 +156,24 @@ export default function RecipeListScreen() {
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           renderItem={({ item }) => (
-            <Link href={{ pathname: '/recipe/[id]', params: { id: item.id } }} asChild>
-              <Pressable>
+            <SwipeableRow
+              isOpen={openRowId === item.id}
+              onOpen={() => setOpenRowId(item.id)}
+              onClose={() => setOpenRowId((cur) => (cur === item.id ? null : cur))}
+              onDelete={() => handleDelete(item)}
+            >
+              <Pressable
+                onPress={() => {
+                  if (openRowId !== null) {
+                    setOpenRowId(null);
+                    return;
+                  }
+                  router.push({ pathname: '/recipe/[id]', params: { id: item.id } });
+                }}
+              >
                 <RecipeRow recipe={item} />
               </Pressable>
-            </Link>
+            </SwipeableRow>
           )}
         />
       )}

@@ -13,11 +13,13 @@ import {
 
 import AIUsageIndicator from '../../src/components/AIUsageIndicator';
 import { useRecipes } from '../../src/RecipesContext';
+import { useToast } from '../../src/ToastContext';
 import { generateRecipe, type GeneratedRecipe } from '../../src/claude';
 import { loadDefaultSeasonings } from '../../src/storage';
 
 export default function AIGenerateScreen() {
   const { addRecipe } = useRecipes();
+  const { showToast } = useToast();
 
   const [ingredientsText, setIngredientsText] = useState('');
   const [requestNote, setRequestNote] = useState('');
@@ -73,7 +75,7 @@ export default function AIGenerateScreen() {
         handwrittenPhotos: [],
         rating: null,
       });
-      Alert.alert('レシピに保存しました');
+      showToast('レシピに保存しました');
       setGenerated(null);
       setIngredientsText('');
       setRequestNote('');
