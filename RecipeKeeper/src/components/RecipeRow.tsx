@@ -22,7 +22,11 @@ export default function RecipeRow({ recipe }: { recipe: Recipe }) {
           {recipe.isAIGenerated && <Text style={styles.aiBadge}>✨</Text>}
         </View>
         <View style={styles.metaRow}>
-          <Text style={styles.genreBadge}>{recipe.genre}</Text>
+          {recipe.genres.length > 0 && (
+            <Text style={styles.genreBadge} numberOfLines={1}>
+              {recipe.genres.join('・')}
+            </Text>
+          )}
           {recipe.rating !== null && <Text style={styles.ratingBadge}>⭐ {recipe.rating}</Text>}
           {count > 0 && <Text style={styles.cookCount}>🔥 {count}回</Text>}
         </View>
@@ -48,6 +52,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
+    flexShrink: 1,
   },
   cookCount: { fontSize: 11, color: '#e07a20' },
   ratingBadge: { fontSize: 11, color: '#b8860b', fontWeight: '600' },

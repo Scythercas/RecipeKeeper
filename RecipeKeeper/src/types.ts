@@ -18,7 +18,7 @@ export type CookLog = {
 export type Recipe = {
   id: string;
   title: string;
-  genre: string; // GENRESのいずれか、または自由入力(AI生成・過去データ互換のため)
+  genres: string[]; // 複数選択可。GENRESのいずれか、またはユーザーが自由に追加したカテゴリー
   sourceURL: string;
   ingredients: string[];
   seasonings: string[];

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useRecipes } from '../RecipesContext';
 import { GENRES } from '../types';
 import type { NewRecipeInput, Recipe } from '../types';
 import PhotoAttachEditor from './PhotoAttachEditor';
@@ -19,8 +20,10 @@ type Props = {
 };
 
 export default function RecipeForm({ initial, onSave }: Props) {
+  const { recipes } = useRecipes();
   const [title, setTitle] = useState(initial?.title ?? '');
-  const [genre, setGenre] = useState(initial?.genre ?? GENRES[0]);
+  const [genres, setGenres] = useState<string[]>(initial?.genres ?? []);
+  const [newGenreText, setNewGenreText] = useState('');
   const [sourceURL, setSourceURL] = useState(initial?.sourceURL ?? '');
   const [ingredientsText, setIngredientsText] = useState(
     (initial?.ingredients ?? []).join('\n')
@@ -34,13 +37,29 @@ export default function RecipeForm({ initial, onSave }: Props) {
   );
   const [rating, setRating] = useState<number | null>(initial?.rating ?? null);
 
+  const availableGenres = useMemo(() => {
+    const used = recipes.flatMap((r) => r.genres);
+    return Array.from(new Set<string>([...GENRES, ...used]));
+  }, [recipes]);
+
   const canSave = title.trim().length > 0;
+
+  function toggleGenre(g: string) {
+    setGenres((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
+  }
+
+  function addNewGenre() {
+    const trimmed = newGenreText.trim();
+    if (!trimmed) return;
+    setGenres((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+    setNewGenreText('');
+  }
 
   function save() {
     if (!canSave) return;
     onSave({
       title: title.trim(),
-      genre,
+      genres,
       sourceURL: sourceURL.trim(),
       ingredients: linesToList(ingredientsText),
       seasonings: linesToList(seasoningsText),
@@ -63,19 +82,6 @@ export default function RecipeForm({ initial, onSave }: Props) {
           value={title}
           onChangeText={setTitle}
         />
-        <View style={styles.genreRow}>
-          {GENRES.map((g) => (
-            <Pressable
-              key={g}
-              onPress={() => setGenre(g)}
-              style={[styles.genreChip, genre === g && styles.genreChipSelected]}
-            >
-              <Text style={[styles.genreChipText, genre === g && styles.genreChipTextSelected]}>
-                {g}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
         <TextInput
           style={styles.input}
           placeholder="参考サイトURL(任意)"
@@ -86,6 +92,39 @@ export default function RecipeForm({ initial, onSave }: Props) {
           autoCorrect={false}
           keyboardType="url"
         />
+      </Section>
+
+      <Section title="カテゴリー(複数選択可)">
+        <View style={styles.genreRow}>
+          {availableGenres.map((g) => (
+            <Pressable
+              key={g}
+              onPress={() => toggleGenre(g)}
+              style={[styles.genreChip, genres.includes(g) && styles.genreChipSelected]}
+            >
+              <Text style={[styles.genreChipText, genres.includes(g) && styles.genreChipTextSelected]}>
+                {g}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.addRow}>
+          <TextInput
+            style={styles.addInput}
+            placeholder="新しいカテゴリーを追加"
+            placeholderTextColor="#999"
+            value={newGenreText}
+            onChangeText={setNewGenreText}
+            onSubmitEditing={addNewGenre}
+          />
+          <Pressable
+            style={[styles.addButton, !newGenreText.trim() && styles.addButtonDisabled]}
+            onPress={addNewGenre}
+            disabled={!newGenreText.trim()}
+          >
+            <Text style={styles.addButtonText}>追加</Text>
+          </Pressable>
+        </View>
       </Section>
 
       <Section title="評価(10点満点)">
@@ -192,6 +231,23 @@ const styles = StyleSheet.create({
   genreChipSelected: { backgroundColor: '#007AFF' },
   genreChipText: { fontSize: 13, color: '#333' },
   genreChipTextSelected: { color: 'white' },
+  addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  addInput: {
+    flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  addButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  addButtonDisabled: { opacity: 0.4 },
+  addButtonText: { color: 'white', fontWeight: '600' },
   saveButton: {
     backgroundColor: '#007AFF',
     borderRadius: 10,

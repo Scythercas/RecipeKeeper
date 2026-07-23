@@ -88,7 +88,13 @@ export default function RecipeDetailScreen() {
 
         <View style={styles.section}>
           <View style={styles.metaRow}>
-            <Text style={styles.genreBadge}>{recipe.genre}</Text>
+            <View style={styles.genreBadges}>
+              {recipe.genres.map((g) => (
+                <Text key={g} style={styles.genreBadge}>
+                  {g}
+                </Text>
+              ))}
+            </View>
             <View style={styles.metaRightGroup}>
               {recipe.rating !== null && <Text style={styles.ratingText}>⭐ {recipe.rating} / 10</Text>}
               <Text style={styles.cookCountText}>🔥 {cookCount(recipe)}回作った</Text>
@@ -215,7 +221,14 @@ const styles = StyleSheet.create({
   headerButton: { fontSize: 16, color: '#007AFF' },
   section: { paddingHorizontal: 16, paddingVertical: 12, gap: 6, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#eee' },
   sectionTitle: { fontSize: 13, color: '#666', fontWeight: '600', marginBottom: 4 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  genreBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, flexShrink: 1 },
   metaRightGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   ratingText: { color: '#b8860b', fontWeight: '600' },
   genreBadge: {

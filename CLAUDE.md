@@ -59,10 +59,10 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
 
 ### データモデル(src/types.ts)
 
-- `Recipe`: title / genre / sourceURL / ingredients / seasonings / steps / memo / isAIGenerated / createdAt / dishPhotos(完成写真のファイルURI配列)/ handwrittenPhotos(手書きレシピのファイルURI配列)/ cookLogs(調理記録の配列)/ rating(10点満点の採点、未評価は`null`)。SwiftData版と異なり、1つのJSONオブジェクトとしてAsyncStorageにまるごと保存する(正規化していない)。
+- `Recipe`: title / genres / sourceURL / ingredients / seasonings / steps / memo / isAIGenerated / createdAt / dishPhotos(完成写真のファイルURI配列)/ handwrittenPhotos(手書きレシピのファイルURI配列)/ cookLogs(調理記録の配列)/ rating(10点満点の採点、未評価は`null`)。SwiftData版と異なり、1つのJSONオブジェクトとしてAsyncStorageにまるごと保存する(正規化していない)。
 - `rating`は`RecipeForm`(新規作成・編集画面で共通)、または詳細画面の「作った!」記録モーダルから更新できる(どちらも`src/components/RatingPicker.tsx`を共有)。モーダル側は`RecipesContext.rateRecipe(id, rating)`で単独更新し、調理記録の追加(`addCookLog`)とは別のAPI呼び出しになる。一覧画面の並び替えで「評価順」を選ぶと`rating`降順(未評価は最後)でソートする。Web版は`recipes`テーブルに`rating int check (rating between 1 and 10)`列を追加済み(2026年7月、`supabase db query --linked`で直接ALTER TABLEを実行、マイグレーションファイルは作成していない)。
 - `CookLog`: `{ id, date, tweak }`。`cookCount(recipe)` / `lastCooked(recipe)` はSwiftData版の計算プロパティに相当するヘルパー関数。
-- `GENRES` は固定の文字列配列だが、`Recipe.genre` は自由文字列としても保存されるため、配列にない値も許容される(AI生成結果や過去データとの互換性のため)。
+- `genres: string[]`(2026年7月に`genre: string`単数から複数選択へ変更)。`GENRES`は固定の初期候補に過ぎず、`RecipeForm`の「新しいカテゴリーを追加」欄から自由に追加できる(永続化された別リストは持たず、既存レシピが使っているジャンルを`useRecipes()`から集計してチップ候補に出す方式)。ネイティブは`storage.ts`の`normalizeRecipe`が旧形式(`genre: string`)を読み込み時に`genres: [genre]`へ自動変換する(端末に残る旧データ対策)。Web版は`recipes`テーブルの`genre text`列を`genres text[]`列へ移行済み(2026年7月、既存行をバックフィルしてから旧列を削除)。
 
 ### データ永続化(src/storage.ts, src/RecipesContext.tsx)
 
@@ -81,6 +81,7 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
 
 - 上部の検索欄は**レシピ名のみ**を対象にした部分一致(食材は含まない)。食材の絞り込みは下の「食材で絞り込む」欄で行う、複数食材のAND一致専用の別コントロール。かつては1つの検索欄が名前と食材の両方を検索していて紛らわしかったため、役割を分離した(2026年7月)。
 - 食材フィルタは大文字小文字を無視した**文字列の部分一致**。表記ゆれ(「たまねぎ/玉ねぎ」など)は正規化していない。Swift版から引き継いだ既知の制限であり、意図的な単純実装。
+- カテゴリー(ジャンル)チップも複数選択可能で、選択したジャンルを**すべて含む**レシピだけを表示するAND一致(食材フィルタと同じ考え方)。OR的な「いずれか含む」は提供していない。候補チップは固定の`GENRES`と、既存レシピが実際に使っているジャンル(`recipes.flatMap(r => r.genres)`)の和集合。
 
 ## Web版アーキテクチャ(Supabase)
 

@@ -64,7 +64,7 @@ export default function AIGenerateScreen() {
     try {
       await addRecipe({
         title: generated.title,
-        genre: generated.genre,
+        genres: [generated.genre],
         sourceURL: '',
         ingredients: generated.ingredients,
         seasonings: generated.seasonings,

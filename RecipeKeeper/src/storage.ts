@@ -24,11 +24,20 @@ const DEFAULT_SEASONINGS = [
   '片栗粉',
 ];
 
+// 過去のバージョンは genre: string (単一) だった。genres: string[] へ移行済みだが、
+// 端末に残っている旧形式のデータを読み込み時に自動変換する(保存し直せば新形式になる)。
+function normalizeRecipe(raw: Recipe & { genre?: string }): Recipe {
+  if (Array.isArray(raw.genres)) return raw;
+  const { genre, ...rest } = raw;
+  return { ...rest, genres: genre ? [genre] : [] };
+}
+
 export async function loadRecipes(): Promise<Recipe[]> {
   const raw = await AsyncStorage.getItem(RECIPES_KEY);
   if (!raw) return [];
   try {
-    return JSON.parse(raw) as Recipe[];
+    const parsed = JSON.parse(raw) as (Recipe & { genre?: string })[];
+    return parsed.map(normalizeRecipe);
   } catch {
     return [];
   }

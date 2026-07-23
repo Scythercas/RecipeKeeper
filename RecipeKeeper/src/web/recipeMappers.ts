@@ -12,7 +12,7 @@ export type RecipeRow = {
   id: string;
   user_id: string;
   title: string;
-  genre: string;
+  genres: string[] | null;
   source_url: string;
   ingredients: string[] | null;
   seasonings: string[] | null;
@@ -34,7 +34,7 @@ export function mapRecipeRow(row: RecipeRow): Recipe {
   return {
     id: row.id,
     title: row.title,
-    genre: row.genre,
+    genres: row.genres ?? [],
     sourceURL: row.source_url,
     ingredients: row.ingredients ?? [],
     seasonings: row.seasonings ?? [],
@@ -53,7 +53,7 @@ export function mapNewRecipeInputToInsert(input: NewRecipeInput, userId: string)
   return {
     user_id: userId,
     title: input.title,
-    genre: input.genre,
+    genres: input.genres,
     source_url: input.sourceURL,
     ingredients: input.ingredients,
     seasonings: input.seasonings,

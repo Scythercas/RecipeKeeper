@@ -25,7 +25,7 @@ export default function RecipeListScreen() {
   const navigation = useNavigation();
 
   const [searchText, setSearchText] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [ingredientFilter, setIngredientFilter] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
   const [openRowId, setOpenRowId] = useState<string | null>(null);
@@ -52,15 +52,19 @@ export default function RecipeListScreen() {
   }, [navigation, router]);
 
   const genresInUse = useMemo(
-    () => Array.from(new Set(recipes.map((r) => r.genre))).sort(),
+    () => Array.from(new Set(recipes.flatMap((r) => r.genres))).sort(),
     [recipes]
   );
+
+  function toggleGenreFilter(g: string) {
+    setSelectedGenres((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
+  }
 
   const filtered = useMemo(() => {
     let result = recipes;
 
-    if (selectedGenre) {
-      result = result.filter((r) => r.genre === selectedGenre);
+    if (selectedGenres.length > 0) {
+      result = result.filter((r) => selectedGenres.every((g) => r.genres.includes(g)));
     }
 
     if (ingredientFilter.trim()) {
@@ -96,7 +100,7 @@ export default function RecipeListScreen() {
         break;
     }
     return sorted;
-  }, [recipes, selectedGenre, ingredientFilter, searchText, sortOrder]);
+  }, [recipes, selectedGenres, ingredientFilter, searchText, sortOrder]);
 
   return (
     <View style={styles.container}>
@@ -108,15 +112,16 @@ export default function RecipeListScreen() {
         onChangeText={setSearchText}
       />
 
+      <Text style={styles.ingredientLabel}>カテゴリーで絞り込む(複数選択ですべて含むレシピだけを表示)</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.genreScroll}>
         <View style={styles.genreRow}>
-          <FilterChip label="すべて" isSelected={selectedGenre === null} onPress={() => setSelectedGenre(null)} />
+          <FilterChip label="すべて" isSelected={selectedGenres.length === 0} onPress={() => setSelectedGenres([])} />
           {genresInUse.map((genre) => (
             <FilterChip
               key={genre}
               label={genre}
-              isSelected={selectedGenre === genre}
-              onPress={() => setSelectedGenre(selectedGenre === genre ? null : genre)}
+              isSelected={selectedGenres.includes(genre)}
+              onPress={() => toggleGenreFilter(genre)}
             />
           ))}
         </View>
