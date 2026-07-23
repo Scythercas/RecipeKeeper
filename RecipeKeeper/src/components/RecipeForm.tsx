@@ -39,8 +39,8 @@ export default function RecipeForm({ initial, onSave }: Props) {
 
   const availableGenres = useMemo(() => {
     const used = recipes.flatMap((r) => r.genres);
-    return Array.from(new Set<string>([...GENRES, ...used]));
-  }, [recipes]);
+    return Array.from(new Set<string>([...GENRES, ...used, ...genres]));
+  }, [recipes, genres]);
 
   const canSave = title.trim().length > 0;
 

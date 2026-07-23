@@ -23,9 +23,13 @@ export default function RecipeRow({ recipe }: { recipe: Recipe }) {
         </View>
         <View style={styles.metaRow}>
           {recipe.genres.length > 0 && (
-            <Text style={styles.genreBadge} numberOfLines={1}>
-              {recipe.genres.join('・')}
-            </Text>
+            <View style={styles.genreBadges}>
+              {recipe.genres.map((g) => (
+                <Text key={g} style={styles.genreBadge}>
+                  {g}
+                </Text>
+              ))}
+            </View>
           )}
           {recipe.rating !== null && <Text style={styles.ratingBadge}>⭐ {recipe.rating}</Text>}
           {count > 0 && <Text style={styles.cookCount}>🔥 {count}回</Text>}
@@ -44,7 +48,8 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   title: { fontSize: 16, fontWeight: '600', flexShrink: 1 },
   aiBadge: { fontSize: 12 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  genreBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, flexShrink: 1 },
   genreBadge: {
     fontSize: 11,
     color: '#555',
