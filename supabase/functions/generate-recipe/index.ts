@@ -12,6 +12,15 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// URLからのレシピ取り込みでページを直接fetchする際に使う、実ブラウザに近いヘッダー。
+// src/claude.ts側にも同じ値がある(ネイティブとDeno環境で別ファイルのため複製)。
+const PAGE_FETCH_HEADERS = {
+  'user-agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+  'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+};
+
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -90,7 +99,7 @@ Deno.serve(async (req) => {
 
     let html: string;
     try {
-      const pageResponse = await fetch(url);
+      const pageResponse = await fetch(url, { headers: PAGE_FETCH_HEADERS });
       if (!pageResponse.ok) {
         return jsonResponse({ error: `ページの取得に失敗しました(HTTP ${pageResponse.status})` }, 502);
       }

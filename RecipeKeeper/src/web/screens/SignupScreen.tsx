@@ -1,8 +1,10 @@
 import { Link, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { supabase } from '../supabaseClient';
+
+const APP_ICON = require('../../../assets/icon.png');
 
 const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL ?? '';
 
@@ -16,7 +18,8 @@ const FEATURES = [
 
 // 散らかったレシピの出どころ(サイト・料理本・メッセージ・手書き)を
 // 少しずつ角度を変えて重ねることで「散在している」感じを表現する。
-// 画像アセットを増やさず、既存の絵文字アイコン方針(CLAUDE.md)を踏襲。
+// 出どころ側は既存の絵文字アイコン方針(CLAUDE.md)を踏襲し、
+// 収束先だけ実際のアプリアイコン(assets/icon.png)を表示する。
 const SCATTERED_SOURCES = [
   { emoji: '🌐', rotate: '-8deg', top: 0, left: 0 },
   { emoji: '📚', rotate: '6deg', top: 18, left: 54 },
@@ -42,7 +45,7 @@ function HeroIllustration() {
       </View>
       <Text style={styles.arrow}>→</Text>
       <View style={styles.organizedCard}>
-        <Text style={styles.organizedEmoji}>📖</Text>
+        <Image source={APP_ICON} style={styles.organizedIcon} />
         <Text style={styles.organizedLabel}>RecipeKeeper</Text>
       </View>
     </View>
@@ -180,15 +183,11 @@ const styles = StyleSheet.create({
   arrow: { fontSize: 20, color: '#bbb' },
   organizedCard: {
     width: 88,
-    height: 88,
-    borderRadius: 14,
-    backgroundColor: '#007AFF',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 4,
   },
-  organizedEmoji: { fontSize: 26 },
-  organizedLabel: { color: 'white', fontSize: 11, fontWeight: '700' },
+  organizedIcon: { width: 72, height: 72, borderRadius: 16 },
+  organizedLabel: { color: '#333', fontSize: 11, fontWeight: '700' },
   heroTitle: { fontSize: 26, fontWeight: '700', color: '#222' },
   heroBody: { fontSize: 14, color: '#555', lineHeight: 22 },
   featureList: { gap: 10, marginTop: 4 },

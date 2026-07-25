@@ -4,6 +4,15 @@ import * as SecureStore from 'expo-secure-store';
 
 const API_KEY_STORE_KEY = 'anthropic_api_key';
 
+// URLからのレシピ取り込みでページを直接fetchする際に使う、実ブラウザに近いヘッダー。
+// supabase/functions/generate-recipe/index.ts側にも同じ値がある(Deno環境とは別ファイルのため複製)。
+const PAGE_FETCH_HEADERS = {
+  'user-agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+  'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+};
+
 export async function loadApiKey(): Promise<string | null> {
   return SecureStore.getItemAsync(API_KEY_STORE_KEY);
 }
@@ -201,7 +210,10 @@ export async function importRecipeFromUrl(url: string): Promise<GeneratedRecipe>
 async function fetchPageText(url: string): Promise<string> {
   let html: string;
   try {
-    const response = await fetch(url);
+    // ヘッダーが無いとブラウザからのアクセスではないと判定され、
+    // レシピサイト側のbot対策で弾かれる(429など)ことがあるため、
+    // 実ブラウザに近いヘッダーを付ける。
+    const response = await fetch(url, { headers: PAGE_FETCH_HEADERS });
     if (!response.ok) {
       throw new ClaudeServiceError(`ページの取得に失敗しました(HTTP ${response.status})`);
     }

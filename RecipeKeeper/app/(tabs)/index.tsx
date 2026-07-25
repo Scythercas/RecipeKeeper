@@ -198,8 +198,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  genreScroll: { marginTop: 12, flexGrow: 0 },
-  genreRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
+  // ScrollView(horizontal)の高さをコンテンツの自動計算に任せると、
+  // 環境によってはチップ下部がわずかに見切れることがあるため、
+  // チップの実測高さ(paddingVertical 6*2 + 文字の行の高さ)に余裕を持たせた
+  // 固定値を明示する(react-navigationタブバーの高さ問題と同種の対策)。
+  genreScroll: { marginTop: 12, flexGrow: 0, height: 40 },
+  genreRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 },
   ingredientLabel: {
     marginHorizontal: 16,
     marginTop: 12,

@@ -37,7 +37,10 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
 │   ├── (tabs)/settings.tsx       常備調味料・APIキー管理
 │   ├── recipe/new.tsx            新規作成(モーダル、RecipeFormを利用)
 │   └── recipe/[id]/index.tsx     詳細表示・「作った!」記録
-│   └── recipe/[id]/edit.tsx      編集(モーダル、RecipeFormを利用)
+│   └── recipe/[id]/edit.tsx      編集(モーダル、RecipeFormを利用)。ヘッダーに削除ボタンもある
+│                                  (削除後は`router.dismissTo('/')`で編集モーダルと詳細画面を
+│                                  まとめて閉じて一覧に戻る。`router.back()`だと削除済みの
+│                                  詳細画面が一瞬「見つかりません」表示になるため)
 └── src/
     ├── types.ts                  Recipe / CookLog 型、GENRES一覧
     ├── id.ts                     依存ライブラリなしの簡易ID生成
@@ -77,13 +80,14 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
 - リクエストボディの `model` は現在 `"claude-haiku-4-5-20251001"` にハードコードされている(`src/claude.ts`とWeb版の`supabase/functions/generate-recipe/index.ts`の両方で同じ文字列を使う)。**Anthropicのモデル名は変更されるため、AI生成機能が失敗する場合はまずこの文字列が現行の正式なモデルIDと一致しているか確認すること。** 元は`claude-sonnet-4-6`だったが、定型のJSON出力タスクである割に生成が遅いという指摘を受け、2026年7月にHaiku系(軽量・高速)へ変更した。Web版はコード変更後に`supabase functions deploy generate-recipe`での再デプロイが必要(Edge Function側は自動デプロイされない)。
 - レスポンスは「JSONのみを出力せよ」という指示でプロンプト側から制御しており、Structured Outputs等の機構は使っていない。コードブロック記号が混入した場合の簡易除去処理あり。
 - APIキーは `expo-secure-store` 経由で保存(iOSのKeychain/AndroidのKeystoreに相当)。`AsyncStorage`には保存しない。新しく秘密情報を扱うコードを追加する場合も同様の方針を守ること。
-- **URLからのレシピ取り込み**(`importRecipeFromUrl`、2026年7月追加): クラシル・クックパッド・YouTube・レシピ記事等のURLを貼ると、ページを取得してテキスト化し、`generateRecipe`と同じ`GeneratedRecipe`形式のJSONをAIに抽出させる。DOMパーサーは追加せず正規表現で`<title>`/`meta description`/`og:description`/タグ除去後の本文を抜き出す簡易実装(`extractPageText`)。ネイティブはCORSの制約が無いので`fetch`で直接ページを取得できるが、**Web版はブラウザのCORSに阻まれるため`claude.web.ts`はSupabase Edge Function(`generate-recipe`)にURLを渡し、サーバー側でfetchさせる**(`try_consume_ai_generation`のレート制限も共有)。Edge Function側は任意のURLをサーバーからfetchするため`isBlockedHost`でlocalhost/プライベートIP/クラウドメタデータIPへのSSRFを拒否している(DNSリバインディングまでは防げない簡易チェック)。抽出できるのはページのHTMLに実際に含まれるテキストのみのため、JSでレンダリングされるサイトや、YouTubeの動画説明欄が短い場合は取り込み精度が落ちる既知の制限がある。プロンプト側に「見つからない場合は`{"error": "..."}`のみを返す」指示を入れ、それを明示的なエラーメッセージとして呼び出し元に伝える。
+- **URLからのレシピ取り込み**(`importRecipeFromUrl`、2026年7月追加): クラシル・クックパッド・YouTube・レシピ記事等のURLを貼ると、ページを取得してテキスト化し、`generateRecipe`と同じ`GeneratedRecipe`形式のJSONをAIに抽出させる。DOMパーサーは追加せず正規表現で`<title>`/`meta description`/`og:description`/タグ除去後の本文を抜き出す簡易実装(`extractPageText`)。ネイティブはCORSの制約が無いので`fetch`で直接ページを取得できるが、**Web版はブラウザのCORSに阻まれるため`claude.web.ts`はSupabase Edge Function(`generate-recipe`)にURLを渡し、サーバー側でfetchさせる**(`try_consume_ai_generation`のレート制限も共有)。Edge Function側は任意のURLをサーバーからfetchするため`isBlockedHost`でlocalhost/プライベートIP/クラウドメタデータIPへのSSRFを拒否している(DNSリバインディングまでは防げない簡易チェック)。抽出できるのはページのHTMLに実際に含まれるテキストのみのため、JSでレンダリングされるサイトや、YouTubeの動画説明欄が短い場合は取り込み精度が落ちる既知の制限がある。プロンプト側に「見つからない場合は`{"error": "..."}`のみを返す」指示を入れ、それを明示的なエラーメッセージとして呼び出し元に伝える。ページfetch時は`PAGE_FETCH_HEADERS`(実ブラウザに近いUser-Agent/Accept/Accept-Language)を付けている(2026年7月追加)。ヘッダー無しだとYouTube等のbot対策で`HTTP 429`が返ることが報告されたための対策だが、**Supabase Edge Functionの送信元IPが共有クラウドIPのため、ヘッダーを付けてもYouTube側のIPベースのレート制限までは解消できない可能性がある**(ネイティブ版は利用者自身の端末IPからfetchするため、この問題が起きにくいと考えられる)。再発する場合は、原因はヘッダーではなくIPレピュテーションである可能性が高く、根本対応にはプロキシ等が必要になる。
 
 ### フィルタ・検索(app/(tabs)/index.tsx)
 
 - 上部の検索欄は**レシピ名のみ**を対象にした部分一致(食材は含まない)。食材の絞り込みは下の「食材で絞り込む」欄で行う、複数食材のAND一致専用の別コントロール。かつては1つの検索欄が名前と食材の両方を検索していて紛らわしかったため、役割を分離した(2026年7月)。
 - 食材フィルタは大文字小文字を無視した**文字列の部分一致**。表記ゆれ(「たまねぎ/玉ねぎ」など)は正規化していない。Swift版から引き継いだ既知の制限であり、意図的な単純実装。
 - カテゴリー(ジャンル)チップも複数選択可能で、選択したジャンルを**すべて含む**レシピだけを表示するAND一致(食材フィルタと同じ考え方)。OR的な「いずれか含む」は提供していない。候補チップは固定の`GENRES`と、既存レシピが実際に使っているジャンル(`recipes.flatMap(r => r.genres)`)の和集合。
+- カテゴリーチップを囲む`ScrollView(horizontal)`(`genreScroll`)は高さをコンテンツ任せにせず`height: 40`を明示している。自動計算に任せるとスマホ表示時にチップ下部がわずかに見切れることがあったため(react-navigationタブバーの高さ問題と同種の対策、2026年7月)。
 
 ## Web版アーキテクチャ(Supabase)
 
@@ -125,16 +129,20 @@ Web版のAI生成は当初Cloudflare Workerによる合言葉プロキシ方式�
 
 ### Web版のデプロイ手順
 
-`gh-pages`ブランチは、`develop/v001`と共通祖先を持たない**orphanブランチ**で、`npx expo export --platform web`の出力(+ 下記2点の手動パッチ)だけを置く。手順:
+`gh-pages`ブランチは、`develop/v001`と共通祖先を持たない**orphanブランチ**で、`npx expo export --platform web`の出力(+ 下記の手動パッチ)だけを置く。手順:
 
 ```
 cd RecipeKeeper
 npx expo export --platform web --clear
-# dist/index.html を2箇所手動編集(builtin +html.tsxが効かないための代替):
+# dist/index.html を手動編集(builtin +html.tsxが効かないための代替):
 #   1. viewport meta タグに viewport-fit=cover を追記
 #   2. <style id="expo-reset"> 内の html,body,#root の height:100% の直後に height:100dvh を追記
 #      (モバイルSafariは100%/100vhがアドレスバー分を考慮しないため、タブバー等が
 #       画面下端で見切れる原因になる。100dvhは実際に見えている範囲を正しく反映する)
+#   3. <link rel="apple-touch-icon" href="/RecipeKeeper/apple-touch-icon.png" />
+#      <link rel="manifest" href="/RecipeKeeper/manifest.json" />
+#      <meta name="theme-color" content="#F5ECE1" /> を追記
+#      (スマホでブックマーク・ホーム画面に追加した際のアイコン用。2026年7月導入)
 cp dist/index.html dist/404.html
 # ↑ GitHub Pagesは/RecipeKeeper/settingsのような直接URL(ブックマーク・リロード・
 #   他サイトからのリンク)に対応する物理ファイルが無いため素で404を返す。SPA(このアプリ)
@@ -143,12 +151,20 @@ cp dist/index.html dist/404.html
 #   正しい画面を描画する(2026年7月導入)。index.htmlを更新したら404.htmlも必ず同期すること。
 git worktree add ../<temp-dir-name> gh-pages
 cd ../<temp-dir-name>
-# 既存の _expo/assets/favicon.ico/index.html/404.html/metadata.json を git rm -r してから dist の中身を丸ごとコピー
+# 既存の _expo/assets/favicon.ico/index.html/404.html/metadata.json/apple-touch-icon.png/manifest.json を
+# git rm -r してから dist の中身を丸ごとコピー
 git add -A && git commit -m "..." && git push origin gh-pages
 cd ../RecipeKeeper && git worktree remove ../<temp-dir-name> --force
 ```
 
 `gh-pages`は普段チェックアウトして作業する場所ではない(過去に誤って作業ディレクトリをgh-pagesのままにして、`.wrangler`や`.expo`のキャッシュファイルを誤コミットした事故があった)。必ずworktreeで隔離すること。
+
+### アプリアイコン・Webの各種アイコン(2026年7月刷新)
+
+- `RecipeKeeper/assets/icon.png`(アプリ本体アイコン)・`favicon.png`(Webタブアイコン)・`android-icon-foreground.png`(Androidアダプティブアイコン前景)は同一画像を使っている。以前はExpoのデフォルトプレースホルダー(青い山形ロゴ)のまま未設定だった。
+- `android-icon-background.png`(旧デフォルトの方眼グリッド画像)は削除し、`app.json`の`android.adaptiveIcon`から`backgroundImage`を外して`backgroundColor: "#F5ECE1"`(アイコンに合わせた生成り色)のみで背景を出す方式にした。**`android-icon-monochrome.png`は未更新のまま**(Android 13+のテーマアイコン用に単色シルエット画像が必要だが、この環境に画像加工ツールが無く生成できていない、既知の未対応)。
+- `RecipeKeeper/public/`ディレクトリは`npx expo export --platform web`実行時に中身がそのまま`dist/`直下にコピーされる(Expoの標準機能、CRA等のpublicフォルダと同様)。ここに`apple-touch-icon.png`(iOS Safariの「ホーム画面に追加」用)と`manifest.json`(Android Chromeの「ホーム画面に追加」用、Web App Manifest)を置いている。両方とも1024x1024の単一画像のみを指定しており、複数解像度は用意していない(画像加工ツールが無いため)。
+- `src/web/screens/SignupScreen.tsx`のヒーローイラストの収束先(「散らばった情報源→1つに集約」の着地点)は、以前は絵文字+Viewで手描きしていたが、実際の`assets/icon.png`を`require`して表示するよう変更した。
 
 ## コーディング方針
 

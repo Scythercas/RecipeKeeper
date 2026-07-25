@@ -1,0 +1,16 @@
+{
+  "name": "RecipeKeeper",
+  "short_name": "RecipeKeeper",
+  "start_url": "/RecipeKeeper/",
+  "display": "standalone",
+  "background_color": "#F5ECE1",
+  "theme_color": "#F5ECE1",
+  "icons": [
+    {
+      "src": "/RecipeKeeper/apple-touch-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
