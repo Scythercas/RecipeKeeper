@@ -37,6 +37,8 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
 │   ├── (tabs)/settings.tsx       常備調味料・APIキー管理
 │   ├── recipe/new.tsx            新規作成(モーダル、RecipeFormを利用)
 │   └── recipe/[id]/index.tsx     詳細表示・「作った!」記録
+│                                  (画面を開いている間は`expo-keep-awake`でスリープを防止。
+│                                  調理中に手が離れて画面ロックするのを避けるため、2026年7月追加)
 │   └── recipe/[id]/edit.tsx      編集(モーダル、RecipeFormを利用)。ヘッダーに削除ボタンもある
 │                                  (削除後は`router.dismissTo('/')`で編集モーダルと詳細画面を
 │                                  まとめて閉じて一覧に戻る。`router.back()`だと削除済みの
@@ -86,6 +88,7 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
 
 - 上部の検索欄は**レシピ名のみ**を対象にした部分一致(食材は含まない)。食材の絞り込みは下の「食材で絞り込む」欄で行う、複数食材のAND一致専用の別コントロール。かつては1つの検索欄が名前と食材の両方を検索していて紛らわしかったため、役割を分離した(2026年7月)。
 - 食材フィルタは大文字小文字を無視した**文字列の部分一致**。表記ゆれ(「たまねぎ/玉ねぎ」など)は正規化していない。Swift版から引き継いだ既知の制限であり、意図的な単純実装。
+- 「食材で絞り込む」の下に「除外する食材」欄があり(2026年7月追加)、こちらは**いずれか一致で除外**(含む側のANDとは逆の「いずれか含む」判定)。含む/除外の両フィルタは独立していて、同じ食材を両方に入れると常に0件になる(未対応、意図的にバリデーションはしていない)。
 - カテゴリー(ジャンル)チップも複数選択可能で、選択したジャンルを**すべて含む**レシピだけを表示するAND一致(食材フィルタと同じ考え方)。OR的な「いずれか含む」は提供していない。候補チップは固定の`GENRES`と、既存レシピが実際に使っているジャンル(`recipes.flatMap(r => r.genres)`)の和集合。
 - カテゴリーチップを囲む`ScrollView(horizontal)`(`genreScroll`)は高さをコンテンツ任せにせず`height: 40`を明示している。自動計算に任せるとスマホ表示時にチップ下部がわずかに見切れることがあったため(react-navigationタブバーの高さ問題と同種の対策、2026年7月)。
 
@@ -121,6 +124,7 @@ Metro/Expo Routerは`foo.web.tsx`という同名ファイルをWebビルド時�
 - **`try_consume_ai_generation`はアプリ所有者本人のアカウント(`garyo20020124@gmail.com`)だけ、1日の生成回数上限を実質無制限(`2147483647`)にしている**(2026年7月、`p_user_id`から`auth.users.email`を引いてハードコードされたメールアドレスと比較)。カウント自体は他ユーザーと同様に記録されるため、利用状況の把握はできる。この関数を編集する際は必ずこの分岐を維持すること。`src/components/AIUsageIndicator.web.tsx`の`UNLIMITED_EMAIL`定数も同じメールアドレスをハードコードしており、該当アカウントでは「残りX/5」ではなく「本日の生成回数: X回(無制限アカウント)」と表示する。両者は独立した箇所に同じ文字列がある(共有定数化していない)ので、対象メールアドレスを変更する場合は両方直すこと。
 - Storage: `recipe-photos`バケット(公開・パスは`${user_id}/${filename}.jpg`というフラット構成。レシピID単位にしていないのは、新規レシピ作成時点ではレシピIDがまだ確定していないため)。
 - Edge Function: `supabase/functions/generate-recipe/`。JWT検証 → レート制限判定 → プロンプト構築 → Anthropic呼び出し、を一括で行う。`ANTHROPIC_API_KEY`と`DAILY_AI_LIMIT`をシークレットとして保持。
+- Edge Function: `supabase/functions/delete-account/`(2026年7月追加、アカウント削除機能)。JWT検証 → `recipe-photos`バケットの`${user_id}/`配下を`service_role`で列挙・削除 → `auth.admin.deleteUser(userId)`。`recipes`/`cook_logs`/`ai_generation_usage`はauth.usersへの`on delete cascade`で自動削除されるため、Storageのファイルだけ手動で先に消す(外部キーで紐付いていないため)。`src/web/screens/SettingsScreen.tsx`の「アカウントの削除」ボタンから`supabase.functions.invoke('delete-account')`で呼び出し、成功後に`supabase.auth.signOut()`してログイン画面へ戻す。**確認ダイアログに`Alert.alert`は使えない**(react-native-webの実装が`static alert() {}`という完全な no-op のため、ネイティブでは動くがWebでは何も起きない。実は`app/recipe/[id]/edit.tsx`のレシピ削除確認もこれに該当し、Web版では削除ボタンを押しても無反応になっている既知の未修正バグ)。そのためこのWeb専用画面では素の`window.confirm`を使っている。
 - ローカルでのSupabase CLI操作(`supabase secrets set` / `supabase functions deploy` / `supabase db query --linked`でのSQL実行等)は`supabase login`のブラウザ認証さえ済んでいれば、このエージェントが直接実行できる(実際にRLSポリシー追加などを代行した実績あり)。ダッシュボードでの手動設定が必要なのは主にAuth周りのURL Configuration(Site URL / Redirect URLs)。
 
 ### `cloudflare-worker/` は廃止済み(削除はまだ)
@@ -168,7 +172,7 @@ cd ../RecipeKeeper && git worktree remove ../<temp-dir-name> --force
 
 ## コーディング方針
 
-- 依存パッケージは最小限に保つ(expo-router, expo-image-picker, expo-image-manipulator, expo-file-system, expo-secure-store, @react-native-async-storage/async-storage 程度)。状態管理ライブラリやUIキットなど、React Contextで十分な範囲に新たな依存を増やさない。`@supabase/supabase-js`はWeb専用ファイルからしか参照しない前提で追加した例外(上記「プラットフォーム分岐の方式」参照)。
+- 依存パッケージは最小限に保つ(expo-router, expo-image-picker, expo-image-manipulator, expo-file-system, expo-secure-store, expo-keep-awake, @react-native-async-storage/async-storage 程度)。状態管理ライブラリやUIキットなど、React Contextで十分な範囲に新たな依存を増やさない。`@supabase/supabase-js`はWeb専用ファイルからしか参照しない前提で追加した例外(上記「プラットフォーム分岐の方式」参照)。
 - `src/components/SwipeableRow.tsx`(一覧のスワイプ削除)は`react-native-gesture-handler`を追加せず、React Native本体の`PanResponder`だけで実装している(依存追加を避ける方針のため)。`onMoveShouldSetPanResponder`で横方向の動きだけを拾うことで、素早いタップは下の`Pressable`にそのまま素通りする。
 - ユーザー操作の結果は`src/ToastContext.tsx`の`useToast().showToast(message)`で一時的なトースト通知として伝える(2026年7月導入)。保存・削除・調理記録など「画面遷移や一覧の見た目だけでは伝わりにくい操作」に使う。エラーは従来どおり`Alert.alert`(明示的な確認が必要なため)、成功はトースト、と使い分ける。
 - タブアイコンは絵文字(Text)で表現しており、`@expo/vector-icons` 等のアイコンライブラリは意図的に導入していない。

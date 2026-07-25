@@ -21,6 +21,8 @@ export default function SettingsScreen() {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordUpdated, setPasswordUpdated] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
 
   useEffect(() => {
     loadDefaultSeasonings().then(setSeasonings);
@@ -65,6 +67,34 @@ export default function SettingsScreen() {
     }
   }
 
+  async function handleDeleteAccount() {
+    // react-native-webのAlert.alertは何も表示しない実装のため、このWeb専用画面ではwindow.confirmを使う。
+    const confirmed = window.confirm(
+      '本当にアカウントを削除しますか?\n保存されているレシピ・調理記録・写真もすべて削除され、元に戻せません。'
+    );
+    if (!confirmed) return;
+
+    setDeleteAccountError(null);
+    setIsDeletingAccount(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-account');
+      if (error) {
+        let message = error.message;
+        try {
+          const errBody = await (error as { context?: Response }).context?.json();
+          if (errBody?.error) message = errBody.error;
+        } catch {
+          // レスポンス本文が読めない場合はデフォルトのエラーメッセージのまま
+        }
+        throw new Error(message);
+      }
+      await supabase.auth.signOut();
+    } catch (e) {
+      setDeleteAccountError(e instanceof Error ? e.message : String(e));
+      setIsDeletingAccount(false);
+    }
+  }
+
   function persist(next: string[]) {
     setSeasonings(next);
     saveDefaultSeasonings(next);
@@ -90,6 +120,22 @@ export default function SettingsScreen() {
         <Text style={styles.accountEmail}>{session?.user.email}</Text>
         <Pressable onPress={() => supabase.auth.signOut()}>
           <Text style={styles.signOutText}>サインアウト</Text>
+        </Pressable>
+      </Section>
+
+      <Section
+        title="アカウントの削除"
+        footer="アカウントを削除すると、保存されているすべてのレシピ・調理記録・写真が完全に削除されます。この操作は取り消せません。"
+      >
+        {deleteAccountError && <Text style={styles.errorText}>{deleteAccountError}</Text>}
+        <Pressable
+          style={[styles.deleteAccountButton, isDeletingAccount && styles.addButtonDisabled]}
+          onPress={handleDeleteAccount}
+          disabled={isDeletingAccount}
+        >
+          <Text style={styles.deleteAccountButtonText}>
+            {isDeletingAccount ? '削除中…' : 'アカウントを削除する'}
+          </Text>
         </Pressable>
       </Section>
 
@@ -212,6 +258,14 @@ const styles = StyleSheet.create({
   footer: { fontSize: 12, color: '#999', lineHeight: 17 },
   accountEmail: { fontSize: 15 },
   signOutText: { color: '#ff3b30', fontSize: 14 },
+  deleteAccountButton: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ff3b30',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  deleteAccountButtonText: { color: '#ff3b30', fontWeight: '600' },
   errorText: { color: '#ff3b30', fontSize: 13 },
   successText: { color: '#34c759', fontSize: 13 },
   addButtonFull: {

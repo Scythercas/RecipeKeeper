@@ -27,6 +27,7 @@ export default function RecipeListScreen() {
   const [searchText, setSearchText] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [ingredientFilter, setIngredientFilter] = useState('');
+  const [excludeIngredientFilter, setExcludeIngredientFilter] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
   const [openRowId, setOpenRowId] = useState<string | null>(null);
 
@@ -79,6 +80,18 @@ export default function RecipeListScreen() {
       });
     }
 
+    if (excludeIngredientFilter.trim()) {
+      const keys = excludeIngredientFilter
+        .replace(/、/g, ',')
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      result = result.filter((r) => {
+        const all = [...r.ingredients, ...r.seasonings].join(' ').toLowerCase();
+        return !keys.some((k) => all.includes(k.toLowerCase()));
+      });
+    }
+
     if (searchText.trim()) {
       const q = searchText.trim().toLowerCase();
       result = result.filter((r) => r.title.toLowerCase().includes(q));
@@ -100,7 +113,7 @@ export default function RecipeListScreen() {
         break;
     }
     return sorted;
-  }, [recipes, selectedGenres, ingredientFilter, searchText, sortOrder]);
+  }, [recipes, selectedGenres, ingredientFilter, excludeIngredientFilter, searchText, sortOrder]);
 
   return (
     <View style={styles.container}>
@@ -134,6 +147,15 @@ export default function RecipeListScreen() {
         placeholderTextColor="#999"
         value={ingredientFilter}
         onChangeText={setIngredientFilter}
+      />
+
+      <Text style={styles.ingredientLabel}>除外する食材(いずれかを含むレシピを非表示)</Text>
+      <TextInput
+        style={styles.ingredientInput}
+        placeholder="例: パクチー, レーズン"
+        placeholderTextColor="#999"
+        value={excludeIngredientFilter}
+        onChangeText={setExcludeIngredientFilter}
       />
 
       <View style={styles.sortRow}>

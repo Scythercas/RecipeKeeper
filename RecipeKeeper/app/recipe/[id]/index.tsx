@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useKeepAwake } from 'expo-keep-awake';
 import React, { useLayoutEffect, useState } from 'react';
 import {
   Alert,
@@ -21,6 +22,9 @@ import { useToast } from '../../../src/ToastContext';
 import { cookCount } from '../../../src/types';
 
 export default function RecipeDetailScreen() {
+  // 調理中に手を止めて画面ロックしてしまうのを避けるため、詳細画面を開いている間はスリープしない
+  useKeepAwake();
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const recipe = useRecipe(id);
   const { addCookLog, deleteCookLog, rateRecipe } = useRecipes();
