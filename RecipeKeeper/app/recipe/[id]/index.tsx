@@ -2,6 +2,7 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import React, { useLayoutEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   Linking,
   Modal,
   Pressable,
@@ -12,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import PhotoAttachEditor from '../../../src/components/PhotoAttachEditor';
 import PhotoCarousel from '../../../src/components/PhotoCarousel';
 import RatingPicker from '../../../src/components/RatingPicker';
 import { useRecipe, useRecipes } from '../../../src/RecipesContext';
@@ -29,6 +31,7 @@ export default function RecipeDetailScreen() {
   const [showCookModal, setShowCookModal] = useState(false);
   const [tweak, setTweak] = useState('');
   const [modalRating, setModalRating] = useState<number | null>(null);
+  const [logPhotos, setLogPhotos] = useState<string[]>([]);
 
   useLayoutEffect(() => {
     if (!recipe) return;
@@ -53,16 +56,18 @@ export default function RecipeDetailScreen() {
   function openCookModal() {
     setTweak('');
     setModalRating(recipe!.rating);
+    setLogPhotos([]);
     setShowCookModal(true);
   }
 
   async function recordCook() {
     try {
-      await addCookLog(recipe!.id, tweak.trim());
+      await addCookLog(recipe!.id, tweak.trim(), logPhotos);
       if (modalRating !== recipe!.rating) {
         await rateRecipe(recipe!.id, modalRating);
       }
       setTweak('');
+      setLogPhotos([]);
       setShowCookModal(false);
       showToast('調理を記録しました');
     } catch (e) {
@@ -154,6 +159,13 @@ export default function RecipeDetailScreen() {
                     })}
                   </Text>
                   {log.tweak.length > 0 && <Text style={styles.logTweak}>💡 {log.tweak}</Text>}
+                  {log.photos.length > 0 && (
+                    <View style={styles.logPhotoRow}>
+                      {log.photos.map((uri) => (
+                        <Image key={uri} source={{ uri }} style={styles.logPhotoThumb} />
+                      ))}
+                    </View>
+                  )}
                 </View>
                 <Pressable onPress={() => removeCookLog(log.id)} hitSlop={8}>
                   <Text style={styles.deleteLog}>削除</Text>
@@ -173,18 +185,22 @@ export default function RecipeDetailScreen() {
       <Modal visible={showCookModal} animationType="slide" transparent onRequestClose={() => setShowCookModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>調理を記録</Text>
-            <Text style={styles.modalLabel}>評価(任意)</Text>
-            <RatingPicker rating={modalRating} onChange={setModalRating} />
-            <Text style={styles.modalLabel}>今回の工夫(任意)</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="例: 砂糖を半分にして蜂蜜を追加"
-              placeholderTextColor="#999"
-              value={tweak}
-              onChangeText={setTweak}
-              multiline
-            />
+            <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+              <Text style={styles.modalTitle}>調理を記録</Text>
+              <Text style={styles.modalLabel}>評価(任意)</Text>
+              <RatingPicker rating={modalRating} onChange={setModalRating} />
+              <Text style={styles.modalLabel}>写真(任意)</Text>
+              <PhotoAttachEditor photos={logPhotos} onChange={setLogPhotos} />
+              <Text style={styles.modalLabel}>今回の工夫(任意)</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="例: 砂糖を半分にして蜂蜜を追加"
+                placeholderTextColor="#999"
+                value={tweak}
+                onChangeText={setTweak}
+                multiline
+              />
+            </ScrollView>
             <View style={styles.modalButtons}>
               <Pressable onPress={() => setShowCookModal(false)}>
                 <Text style={styles.modalCancel}>キャンセル</Text>
@@ -263,6 +279,8 @@ const styles = StyleSheet.create({
   },
   logDate: { fontSize: 12, color: '#888' },
   logTweak: { fontSize: 14, marginTop: 2 },
+  logPhotoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  logPhotoThumb: { width: 56, height: 56, borderRadius: 6 },
   deleteLog: { fontSize: 12, color: '#ff3b30' },
   cookButtonBar: {
     position: 'absolute',
@@ -282,7 +300,15 @@ const styles = StyleSheet.create({
   },
   cookButtonText: { color: 'white', fontSize: 16, fontWeight: '700' },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
-  modalSheet: { backgroundColor: 'white', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, gap: 10 },
+  modalSheet: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+    maxHeight: '85%',
+    gap: 10,
+  },
+  modalScrollContent: { gap: 10 },
   modalTitle: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
   modalLabel: { fontSize: 13, color: '#666', marginTop: 8 },
   modalInput: {

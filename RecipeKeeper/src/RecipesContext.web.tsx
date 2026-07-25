@@ -18,7 +18,7 @@ type RecipesContextValue = {
   addRecipe: (input: NewRecipeInput) => Promise<Recipe>;
   updateRecipe: (id: string, input: NewRecipeInput) => Promise<void>;
   deleteRecipe: (id: string) => Promise<void>;
-  addCookLog: (recipeId: string, tweak: string) => Promise<void>;
+  addCookLog: (recipeId: string, tweak: string, photos: string[]) => Promise<void>;
   deleteCookLog: (recipeId: string, cookLogId: string) => Promise<void>;
   rateRecipe: (id: string, rating: number | null) => Promise<void>;
 };
@@ -95,11 +95,11 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addCookLog = useCallback(
-    async (recipeId: string, tweak: string): Promise<void> => {
+    async (recipeId: string, tweak: string, photos: string[]): Promise<void> => {
       if (!userId) throw new Error('ログインが必要です。');
       const { data, error } = await supabase
         .from('cook_logs')
-        .insert({ recipe_id: recipeId, user_id: userId, tweak })
+        .insert({ recipe_id: recipeId, user_id: userId, tweak, photos })
         .select()
         .single();
       if (error || !data) throw new Error(error?.message ?? '記録に失敗しました。');
@@ -111,17 +111,24 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
     [userId]
   );
 
-  const deleteCookLog = useCallback(async (recipeId: string, cookLogId: string): Promise<void> => {
-    const { error } = await supabase.from('cook_logs').delete().eq('id', cookLogId);
-    if (error) throw new Error(error.message);
-    setRecipes((prev) =>
-      prev.map((r) =>
-        r.id === recipeId
-          ? { ...r, cookLogs: r.cookLogs.filter((log) => log.id !== cookLogId) }
-          : r
-      )
-    );
-  }, []);
+  const deleteCookLog = useCallback(
+    async (recipeId: string, cookLogId: string): Promise<void> => {
+      const targetLog = recipes
+        .find((r) => r.id === recipeId)
+        ?.cookLogs.find((log) => log.id === cookLogId);
+      const { error } = await supabase.from('cook_logs').delete().eq('id', cookLogId);
+      if (error) throw new Error(error.message);
+      targetLog?.photos.forEach(deletePhoto);
+      setRecipes((prev) =>
+        prev.map((r) =>
+          r.id === recipeId
+            ? { ...r, cookLogs: r.cookLogs.filter((log) => log.id !== cookLogId) }
+            : r
+        )
+      );
+    },
+    [recipes]
+  );
 
   const rateRecipe = useCallback(async (id: string, rating: number | null): Promise<void> => {
     const { error } = await supabase.from('recipes').update({ rating }).eq('id', id);

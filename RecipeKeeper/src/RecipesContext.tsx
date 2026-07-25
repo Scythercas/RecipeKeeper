@@ -11,7 +11,7 @@ type RecipesContextValue = {
   addRecipe: (input: NewRecipeInput) => Promise<Recipe>;
   updateRecipe: (id: string, input: NewRecipeInput) => Promise<void>;
   deleteRecipe: (id: string) => Promise<void>;
-  addCookLog: (recipeId: string, tweak: string) => Promise<void>;
+  addCookLog: (recipeId: string, tweak: string, photos: string[]) => Promise<void>;
   deleteCookLog: (recipeId: string, cookLogId: string) => Promise<void>;
   rateRecipe: (id: string, rating: number | null) => Promise<void>;
 };
@@ -60,7 +60,7 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
     setRecipes((prev) => prev.filter((r) => r.id !== id));
   }, []);
 
-  const addCookLog = useCallback(async (recipeId: string, tweak: string): Promise<void> => {
+  const addCookLog = useCallback(async (recipeId: string, tweak: string, photos: string[]): Promise<void> => {
     setRecipes((prev) =>
       prev.map((r) =>
         r.id === recipeId
@@ -68,7 +68,7 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
               ...r,
               cookLogs: [
                 ...r.cookLogs,
-                { id: generateId(), date: new Date().toISOString(), tweak },
+                { id: generateId(), date: new Date().toISOString(), tweak, photos },
               ],
             }
           : r
@@ -78,11 +78,12 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
 
   const deleteCookLog = useCallback(async (recipeId: string, cookLogId: string): Promise<void> => {
     setRecipes((prev) =>
-      prev.map((r) =>
-        r.id === recipeId
-          ? { ...r, cookLogs: r.cookLogs.filter((log) => log.id !== cookLogId) }
-          : r
-      )
+      prev.map((r) => {
+        if (r.id !== recipeId) return r;
+        const target = r.cookLogs.find((log) => log.id === cookLogId);
+        target?.photos.forEach(deletePhoto);
+        return { ...r, cookLogs: r.cookLogs.filter((log) => log.id !== cookLogId) };
+      })
     );
   }, []);
 

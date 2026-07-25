@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { Recipe } from './types';
+import type { CookLog, Recipe } from './types';
 
 const RECIPES_KEY = 'recipekeeper.recipes.v1';
 const SEASONINGS_KEY = 'recipekeeper.defaultSeasonings.v1';
@@ -26,10 +26,14 @@ const DEFAULT_SEASONINGS = [
 
 // 過去のバージョンは genre: string (単一) だった。genres: string[] へ移行済みだが、
 // 端末に残っている旧形式のデータを読み込み時に自動変換する(保存し直せば新形式になる)。
+// 同様にCookLog.photosも後から追加したフィールドなので、無い場合は空配列で補う。
 function normalizeRecipe(raw: Recipe & { genre?: string }): Recipe {
-  if (Array.isArray(raw.genres)) return raw;
+  const genres = Array.isArray(raw.genres) ? raw.genres : raw.genre ? [raw.genre] : [];
+  const cookLogs = (raw.cookLogs ?? []).map(
+    (log): CookLog => ({ ...log, photos: Array.isArray(log.photos) ? log.photos : [] })
+  );
   const { genre, ...rest } = raw;
-  return { ...rest, genres: genre ? [genre] : [] };
+  return { ...rest, genres, cookLogs };
 }
 
 export async function loadRecipes(): Promise<Recipe[]> {

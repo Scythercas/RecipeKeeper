@@ -22,6 +22,7 @@ RecipeKeeper は Expo(React Native)製のレシピ管理アプリ。**ネイテ�
 - **開発者はMac実機を持っていない。** そのためこのプロジェクトは意図的にExpo(マネージドワークフロー)を採用している。日々の動作確認はExpo GoアプリでのQRコードスキャンで行い、TestFlight配布が必要な場合もEAS Build(クラウドビルド)を使うため、Mac/Xcodeは一切登場しない。**新機能の実装で「Xcodeで確認してください」的な前提を持ち込まない。** bare React Native CLIへの移行やネイティブモジュールの追加(Podfile編集が必要になるもの)は、この前提を壊すため慎重に検討すること。
 - **このリポジトリを直接操作している Claude Code (このエージェント) はWindows環境で動作しており、実機やシミュレータでの動作確認は行えない。** ただし `npx tsc --noEmit`(型チェック)と `npx expo export --platform ios`(Metroバンドルが通るかの確認)はこの環境でも実行でき、実際に有効な検証手段になる。コード変更後はこの2つを実行してから完了を報告すること。「Expo Goで動作確認しました」のような、実際に行っていない主張はしない。
 - 以前のバージョンはSwiftUI + SwiftData製のネイティブiOSアプリで、AWS EC2 Macインスタンス上でXcodeを操作する構成だった。React Native化はその構成を置き換えるために行った(EC2 Macのセットアップの手間とコストを避けるため)。過去のSwiftコードやAWS関連の手順は残っていない。
+- **git identityはこのリポジトリだけローカル設定で上書きしている**(2026年7月)。グローバル設定(`git config --global user.name/user.email`)は会社アドレス`ryo.igarashi@scsk-ahs.co.jp`になっているが、これは個人プロジェクトであり会社アドレスをコミット履歴に残したくないため、このリポジトリ直下で`git config --local user.name "Scythercas"` / `user.email "garyo20020124@gmail.com"`を設定済み。**このローカル設定を消したりグローバル設定に合わせたりしないこと。** なお`git push`の認証自体はGitHub CLI(`gh auth git-credential`)経由で、`gh auth status`で確認できる唯一のログイン先である`Scythercas`アカウントが使われる(認証は元々正しく、問題があったのはコミットの著者情報だけだった)。過去のコミット(このローカル設定より前のもの)は会社アドレスのまま残っており、意図的にhistory書き換えはしていない。
 
 ## アーキテクチャ
 
@@ -61,7 +62,7 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
 
 - `Recipe`: title / genres / sourceURL / ingredients / seasonings / steps / memo / isAIGenerated / createdAt / dishPhotos(完成写真のファイルURI配列)/ handwrittenPhotos(手書きレシピのファイルURI配列)/ cookLogs(調理記録の配列)/ rating(10点満点の採点、未評価は`null`)。SwiftData版と異なり、1つのJSONオブジェクトとしてAsyncStorageにまるごと保存する(正規化していない)。
 - `rating`は`RecipeForm`(新規作成・編集画面で共通)、または詳細画面の「作った!」記録モーダルから更新できる(どちらも`src/components/RatingPicker.tsx`を共有)。モーダル側は`RecipesContext.rateRecipe(id, rating)`で単独更新し、調理記録の追加(`addCookLog`)とは別のAPI呼び出しになる。一覧画面の並び替えで「評価順」を選ぶと`rating`降順(未評価は最後)でソートする。Web版は`recipes`テーブルに`rating int check (rating between 1 and 10)`列を追加済み(2026年7月、`supabase db query --linked`で直接ALTER TABLEを実行、マイグレーションファイルは作成していない)。
-- `CookLog`: `{ id, date, tweak }`。`cookCount(recipe)` / `lastCooked(recipe)` はSwiftData版の計算プロパティに相当するヘルパー関数。
+- `CookLog`: `{ id, date, tweak, photos }`。`photos`は「作った!」記録モーダルで`PhotoAttachEditor`(ライブラリ/カメラ)から追加する、その回の完成写真(2026年7月追加、過去データは空配列)。`cookCount(recipe)` / `lastCooked(recipe)` はSwiftData版の計算プロパティに相当するヘルパー関数。
 - `genres: string[]`(2026年7月に`genre: string`単数から複数選択へ変更)。`GENRES`は固定の初期候補に過ぎず、`RecipeForm`の「新しいカテゴリーを追加」欄から自由に追加できる(永続化された別リストは持たず、既存レシピが使っているジャンルを`useRecipes()`から集計してチップ候補に出す方式)。ネイティブは`storage.ts`の`normalizeRecipe`が旧形式(`genre: string`)を読み込み時に`genres: [genre]`へ自動変換する(端末に残る旧データ対策)。Web版は`recipes`テーブルの`genre text`列を`genres text[]`列へ移行済み(2026年7月、既存行をバックフィルしてから旧列を削除)。
 
 ### データ永続化(src/storage.ts, src/RecipesContext.tsx)
@@ -112,7 +113,8 @@ Metro/Expo Routerは`foo.web.tsx`という同名ファイルをWebビルド時�
 
 ### Supabaseスキーマ・設定
 
-- テーブル: `recipes`(`rating int check (rating between 1 and 10)`列を含む、未評価は`NULL`), `cook_logs`(`user_id`で所有者を持ちRLSで分離), `ai_generation_usage`(1ユーザー1日ごとの生成回数。`try_consume_ai_generation` SECURITY DEFINER関数経由でのみ加算でき、`ai_generation_usage_owner_select`ポリシーで本人だけ閲覧可)。
+- テーブル: `recipes`(`rating int check (rating between 1 and 10)`列を含む、未評価は`NULL`), `cook_logs`(`user_id`で所有者を持ちRLSで分離。`photos text[] not null default '{}'`列を追加済み、2026年7月), `ai_generation_usage`(1ユーザー1日ごとの生成回数。`try_consume_ai_generation` SECURITY DEFINER関数経由でのみ加算でき、`ai_generation_usage_owner_select`ポリシーで本人だけ閲覧可)。
+- **`try_consume_ai_generation`はアプリ所有者本人のアカウント(`garyo20020124@gmail.com`)だけ、1日の生成回数上限を実質無制限(`2147483647`)にしている**(2026年7月、`p_user_id`から`auth.users.email`を引いてハードコードされたメールアドレスと比較)。カウント自体は他ユーザーと同様に記録されるため、利用状況の把握はできる。この関数を編集する際は必ずこの分岐を維持すること。`src/components/AIUsageIndicator.web.tsx`の`UNLIMITED_EMAIL`定数も同じメールアドレスをハードコードしており、該当アカウントでは「残りX/5」ではなく「本日の生成回数: X回(無制限アカウント)」と表示する。両者は独立した箇所に同じ文字列がある(共有定数化していない)ので、対象メールアドレスを変更する場合は両方直すこと。
 - Storage: `recipe-photos`バケット(公開・パスは`${user_id}/${filename}.jpg`というフラット構成。レシピID単位にしていないのは、新規レシピ作成時点ではレシピIDがまだ確定していないため)。
 - Edge Function: `supabase/functions/generate-recipe/`。JWT検証 → レート制限判定 → プロンプト構築 → Anthropic呼び出し、を一括で行う。`ANTHROPIC_API_KEY`と`DAILY_AI_LIMIT`をシークレットとして保持。
 - ローカルでのSupabase CLI操作(`supabase secrets set` / `supabase functions deploy` / `supabase db query --linked`でのSQL実行等)は`supabase login`のブラウザ認証さえ済んでいれば、このエージェントが直接実行できる(実際にRLSポリシー追加などを代行した実績あり)。ダッシュボードでの手動設定が必要なのは主にAuth周りのURL Configuration(Site URL / Redirect URLs)。

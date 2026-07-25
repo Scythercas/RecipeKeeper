@@ -13,6 +13,7 @@ export type CookLog = {
   id: string;
   date: string; // ISO 8601
   tweak: string;
+  photos: string[]; // その回に作った完成写真。過去データは空配列
 };
 
 export type Recipe = {

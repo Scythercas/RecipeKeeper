@@ -6,6 +6,7 @@ export type CookLogRow = {
   user_id: string;
   date: string;
   tweak: string;
+  photos: string[] | null;
 };
 
 export type RecipeRow = {
@@ -27,7 +28,7 @@ export type RecipeRow = {
 };
 
 export function mapCookLogRow(row: CookLogRow): CookLog {
-  return { id: row.id, date: row.date, tweak: row.tweak };
+  return { id: row.id, date: row.date, tweak: row.tweak, photos: row.photos ?? [] };
 }
 
 export function mapRecipeRow(row: RecipeRow): Recipe {
