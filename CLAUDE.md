@@ -76,6 +76,7 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
 - リクエストボディの `model` は現在 `"claude-haiku-4-5-20251001"` にハードコードされている(`src/claude.ts`とWeb版の`supabase/functions/generate-recipe/index.ts`の両方で同じ文字列を使う)。**Anthropicのモデル名は変更されるため、AI生成機能が失敗する場合はまずこの文字列が現行の正式なモデルIDと一致しているか確認すること。** 元は`claude-sonnet-4-6`だったが、定型のJSON出力タスクである割に生成が遅いという指摘を受け、2026年7月にHaiku系(軽量・高速)へ変更した。Web版はコード変更後に`supabase functions deploy generate-recipe`での再デプロイが必要(Edge Function側は自動デプロイされない)。
 - レスポンスは「JSONのみを出力せよ」という指示でプロンプト側から制御しており、Structured Outputs等の機構は使っていない。コードブロック記号が混入した場合の簡易除去処理あり。
 - APIキーは `expo-secure-store` 経由で保存(iOSのKeychain/AndroidのKeystoreに相当)。`AsyncStorage`には保存しない。新しく秘密情報を扱うコードを追加する場合も同様の方針を守ること。
+- **URLからのレシピ取り込み**(`importRecipeFromUrl`、2026年7月追加): クラシル・クックパッド・YouTube・レシピ記事等のURLを貼ると、ページを取得してテキスト化し、`generateRecipe`と同じ`GeneratedRecipe`形式のJSONをAIに抽出させる。DOMパーサーは追加せず正規表現で`<title>`/`meta description`/`og:description`/タグ除去後の本文を抜き出す簡易実装(`extractPageText`)。ネイティブはCORSの制約が無いので`fetch`で直接ページを取得できるが、**Web版はブラウザのCORSに阻まれるため`claude.web.ts`はSupabase Edge Function(`generate-recipe`)にURLを渡し、サーバー側でfetchさせる**(`try_consume_ai_generation`のレート制限も共有)。Edge Function側は任意のURLをサーバーからfetchするため`isBlockedHost`でlocalhost/プライベートIP/クラウドメタデータIPへのSSRFを拒否している(DNSリバインディングまでは防げない簡易チェック)。抽出できるのはページのHTMLに実際に含まれるテキストのみのため、JSでレンダリングされるサイトや、YouTubeの動画説明欄が短い場合は取り込み精度が落ちる既知の制限がある。プロンプト側に「見つからない場合は`{"error": "..."}`のみを返す」指示を入れ、それを明示的なエラーメッセージとして呼び出し元に伝える。
 
 ### フィルタ・検索(app/(tabs)/index.tsx)
 

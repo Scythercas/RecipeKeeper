@@ -145,3 +145,135 @@ ${params.requestNote || '特になし'}
     throw new ClaudeServiceError('レシピの解析に失敗しました。もう一度お試しください。');
   }
 }
+
+// クラシル・クックパッド・YouTube・レシピ記事等のURLからレシピを取り込む。
+// ネイティブはCORSの制約が無いので、ページのHTMLを直接fetchできる
+// (Web版はブラウザのCORSに阻まれるため、claude.web.tsはSupabase Edge Function経由でサーバー側fetchする)。
+export async function importRecipeFromUrl(url: string): Promise<GeneratedRecipe> {
+  const apiKey = await loadApiKey();
+  if (!apiKey) {
+    throw new ClaudeServiceError('APIキーが未設定です。設定タブから登録してください。');
+  }
+
+  const pageText = await fetchPageText(url);
+  const prompt = buildImportPrompt(url, pageText);
+
+  const requestBody = JSON.stringify({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 1500,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: requestBody,
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new ClaudeServiceError(`APIエラー: HTTP ${response.status}: ${detail.slice(0, 200)}`);
+  }
+
+  const json = await response.json();
+  const text: string = (json.content ?? [])
+    .filter((block: { type: string }) => block.type === 'text')
+    .map((block: { text: string }) => block.text)
+    .join('');
+  const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+  let parsed: GeneratedRecipe & { error?: string };
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    throw new ClaudeServiceError('レシピの解析に失敗しました。もう一度お試しください。');
+  }
+  if (parsed.error) {
+    throw new ClaudeServiceError(parsed.error);
+  }
+  return parsed;
+}
+
+async function fetchPageText(url: string): Promise<string> {
+  let html: string;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new ClaudeServiceError(`ページの取得に失敗しました(HTTP ${response.status})`);
+    }
+    html = await response.text();
+  } catch (e) {
+    if (e instanceof ClaudeServiceError) throw e;
+    throw new ClaudeServiceError('ページの取得に失敗しました。URLを確認してください。');
+  }
+
+  const pageText = extractPageText(html);
+  if (pageText.length < 20) {
+    throw new ClaudeServiceError('ページからレシピらしいテキストを取得できませんでした。');
+  }
+  return pageText;
+}
+
+// DOMパーサーを追加せず、正規表現だけでタイトル・meta description・本文テキストを抜き出す簡易実装。
+// YouTube等JSでレンダリングされるページは本文が取れないことがあるが、
+// title/meta descriptionだけでも抽出の手がかりになるため残す。
+function extractPageText(html: string): string {
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const descMatch =
+    html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i) ||
+    html.match(/<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["']/i);
+  const ogDescMatch =
+    html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']*)["']/i) ||
+    html.match(/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:description["']/i);
+
+  const bodyText = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<[^>]+>/g, '\n')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+
+  const parts = [
+    titleMatch ? `タイトル: ${titleMatch[1].trim()}` : '',
+    descMatch ? `概要: ${descMatch[1].trim()}` : '',
+    ogDescMatch ? `OG概要: ${ogDescMatch[1].trim()}` : '',
+    bodyText,
+  ].filter(Boolean);
+
+  return parts.join('\n\n').slice(0, 8000);
+}
+
+function buildImportPrompt(url: string, pageText: string): string {
+  return `あなたは家庭料理のレシピ作成アシスタントです。以下はレシピサイトやレシピ動画のページから取得したテキストです。この中からレシピ情報を抽出し、JSON形式で出力してください。
+
+## 取得したページのテキスト(URL: ${url})
+${pageText}
+
+## 条件
+- ページ内に複数レシピがある場合は、最も主要なレシピ1つを対象にする
+- 分量や手順はページの記載をできるだけそのまま使う(不明な場合は無理に創作しない)
+- レシピ情報が見つからない場合は、他のフィールドを一切含めず {"error": "レシピ情報が見つかりませんでした"} だけを出力する
+
+## 出力形式
+次のJSONのみを出力してください。前置き・後書き・コードブロック記号は一切不要です。
+{
+  "title": "レシピ名",
+  "genre": "和食/洋食/中華/韓国/エスニック/イタリアン/デザート/その他 のいずれか",
+  "ingredients": ["食材 分量", ...],
+  "seasonings": ["調味料 分量", ...],
+  "steps": ["手順1", "手順2", ...],
+  "point": "ワンポイントアドバイス(無ければ空文字)"
+}`;
+}

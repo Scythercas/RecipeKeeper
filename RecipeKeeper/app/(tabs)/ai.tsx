@@ -14,12 +14,16 @@ import {
 import AIUsageIndicator from '../../src/components/AIUsageIndicator';
 import { useRecipes } from '../../src/RecipesContext';
 import { useToast } from '../../src/ToastContext';
-import { generateRecipe, type GeneratedRecipe } from '../../src/claude';
+import { generateRecipe, importRecipeFromUrl, type GeneratedRecipe } from '../../src/claude';
 import { loadDefaultSeasonings } from '../../src/storage';
 
 export default function AIGenerateScreen() {
   const { addRecipe } = useRecipes();
   const { showToast } = useToast();
+
+  const [importUrl, setImportUrl] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importedSourceURL, setImportedSourceURL] = useState('');
 
   const [ingredientsText, setIngredientsText] = useState('');
   const [requestNote, setRequestNote] = useState('');
@@ -34,11 +38,30 @@ export default function AIGenerateScreen() {
     loadDefaultSeasonings().then(setDefaultSeasonings);
   }, []);
 
-  const canGenerate = !isLoading && ingredientsText.trim().length > 0;
+  const canImport = !isLoading && !isImporting && importUrl.trim().length > 0;
+  const canGenerate = !isLoading && !isImporting && ingredientsText.trim().length > 0;
+
+  async function importFromUrl() {
+    setErrorMessage(null);
+    setGenerated(null);
+    setIsImporting(true);
+    try {
+      const url = importUrl.trim();
+      const result = await importRecipeFromUrl(url);
+      setGenerated(result);
+      setImportedSourceURL(url);
+    } catch (e) {
+      setErrorMessage(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsImporting(false);
+      setUsageRefreshKey((k) => k + 1);
+    }
+  }
 
   async function generate() {
     setErrorMessage(null);
     setGenerated(null);
+    setImportedSourceURL('');
     setIsLoading(true);
     try {
       const ingredients = ingredientsText
@@ -65,7 +88,7 @@ export default function AIGenerateScreen() {
       await addRecipe({
         title: generated.title,
         genres: [generated.genre],
-        sourceURL: '',
+        sourceURL: importedSourceURL,
         ingredients: generated.ingredients,
         seasonings: generated.seasonings,
         steps: generated.steps,
@@ -77,6 +100,8 @@ export default function AIGenerateScreen() {
       });
       showToast('レシピに保存しました');
       setGenerated(null);
+      setImportUrl('');
+      setImportedSourceURL('');
       setIngredientsText('');
       setRequestNote('');
     } catch (e) {
@@ -86,7 +111,34 @@ export default function AIGenerateScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Section title="今ある食材・調味料(1行に1つ)">
+      <Section title="レシピサイトのURLから取り込む">
+        <Text style={styles.mutedText}>
+          クラシル・クックパッド・YouTube・レシピ記事などのURLを貼り付けると、AIがレシピを抽出します(サイトによっては取り込めない場合があります)
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://..."
+          placeholderTextColor="#999"
+          value={importUrl}
+          onChangeText={setImportUrl}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+        />
+        <Pressable
+          style={[styles.importButton, !canImport && styles.generateButtonDisabled]}
+          onPress={importFromUrl}
+          disabled={!canImport}
+        >
+          {isImporting ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text style={styles.generateButtonText}>🔗 URLから取り込む</Text>
+          )}
+        </Pressable>
+      </Section>
+
+      <Section title="または、今ある食材・調味料から(1行に1つ)">
         <TextInput
           style={styles.textArea}
           placeholder={'例:\n鶏むね肉\nキャベツ\nオイスターソース'}
@@ -215,6 +267,12 @@ const styles = StyleSheet.create({
   switchLabel: { fontSize: 15 },
   warnText: { fontSize: 12, color: '#e07a20' },
   mutedText: { fontSize: 12, color: '#888' },
+  importButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
   generateButton: {
     backgroundColor: '#7c3aed',
     borderRadius: 10,

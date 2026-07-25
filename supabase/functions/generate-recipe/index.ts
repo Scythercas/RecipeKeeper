@@ -61,53 +61,65 @@ Deno.serve(async (req) => {
     );
   }
 
-  let body: { availableIngredients?: unknown; defaultSeasonings?: unknown; requestNote?: unknown };
+  let body: {
+    availableIngredients?: unknown;
+    defaultSeasonings?: unknown;
+    requestNote?: unknown;
+    importUrl?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
     return jsonResponse({ error: 'リクエストの形式が不正です。' }, 400);
   }
 
-  const availableIngredients = (Array.isArray(body.availableIngredients) ? body.availableIngredients : [])
-    .slice(0, MAX_INGREDIENTS)
-    .map(String);
-  const defaultSeasonings = (Array.isArray(body.defaultSeasonings) ? body.defaultSeasonings : [])
-    .slice(0, MAX_SEASONINGS)
-    .map(String);
-  const requestNote = String(body.requestNote ?? '').slice(0, MAX_NOTE_LENGTH);
+  let prompt: string;
 
-  if (availableIngredients.length === 0) {
-    return jsonResponse({ error: '食材を入力してください。' }, 400);
+  if (typeof body.importUrl === 'string' && body.importUrl.trim()) {
+    const url = body.importUrl.trim();
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return jsonResponse({ error: 'URLの形式が正しくありません。' }, 400);
+    }
+    if (!['http:', 'https:'].includes(parsedUrl.protocol) || isBlockedHost(parsedUrl.hostname)) {
+      return jsonResponse({ error: 'このURLは利用できません。' }, 400);
+    }
+
+    let html: string;
+    try {
+      const pageResponse = await fetch(url);
+      if (!pageResponse.ok) {
+        return jsonResponse({ error: `ページの取得に失敗しました(HTTP ${pageResponse.status})` }, 502);
+      }
+      html = await pageResponse.text();
+    } catch {
+      return jsonResponse({ error: 'ページの取得に失敗しました。URLを確認してください。' }, 502);
+    }
+
+    const pageText = extractPageText(html);
+    if (pageText.length < 20) {
+      return jsonResponse({ error: 'ページからレシピらしいテキストを取得できませんでした。' }, 422);
+    }
+
+    prompt = buildImportPrompt(url, pageText);
+  } else {
+    const availableIngredients = (Array.isArray(body.availableIngredients) ? body.availableIngredients : [])
+      .slice(0, MAX_INGREDIENTS)
+      .map(String);
+    const defaultSeasonings = (Array.isArray(body.defaultSeasonings) ? body.defaultSeasonings : [])
+      .slice(0, MAX_SEASONINGS)
+      .map(String);
+    const requestNote = String(body.requestNote ?? '').slice(0, MAX_NOTE_LENGTH);
+
+    if (availableIngredients.length === 0) {
+      return jsonResponse({ error: '食材を入力してください。' }, 400);
+    }
+
+    prompt = buildIngredientsPrompt(availableIngredients, defaultSeasonings, requestNote);
   }
-
-  const seasoningNote = defaultSeasonings.length > 0 ? defaultSeasonings.join('、') : '特になし';
-
-  const prompt = `あなたは家庭料理のレシピ作成アシスタントです。以下の条件でレシピを1つ考えてください。
-
-## 手元にある食材
-${availableIngredients.join('、')}
-
-## 常備している調味料(これらは追加購入なしで使える前提)
-${seasoningNote}
-
-## リクエスト
-${requestNote || '特になし'}
-
-## 条件
-- 上記の食材と常備調味料だけで作れること(足りない材料を要求しない)
-- 分量は2人分を目安に具体的に書く
-- 手順は家庭で再現しやすい粒度で書く
-
-## 出力形式
-次のJSONのみを出力してください。前置き・後書き・コードブロック記号は一切不要です。
-{
-  "title": "レシピ名",
-  "genre": "和食/洋食/中華/韓国/エスニック/イタリアン/デザート/その他 のいずれか",
-  "ingredients": ["食材 分量", ...],
-  "seasonings": ["調味料 分量", ...],
-  "steps": ["手順1", "手順2", ...],
-  "point": "ワンポイントアドバイス"
-}`;
 
   const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')!;
   const response = await fetch(ANTHROPIC_URL, {
@@ -138,10 +150,130 @@ ${requestNote || '特になし'}
     .join('');
   const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
+  let parsed: Record<string, unknown>;
   try {
-    const parsed = JSON.parse(cleaned);
-    return jsonResponse(parsed, 200);
+    parsed = JSON.parse(cleaned);
   } catch {
     return jsonResponse({ error: 'レシピの解析に失敗しました。もう一度お試しください。' }, 502);
   }
+  if (typeof parsed.error === 'string') {
+    return jsonResponse({ error: parsed.error }, 422);
+  }
+  return jsonResponse(parsed, 200);
 });
+
+function buildIngredientsPrompt(
+  availableIngredients: string[],
+  defaultSeasonings: string[],
+  requestNote: string
+): string {
+  const seasoningNote = defaultSeasonings.length > 0 ? defaultSeasonings.join('、') : '特になし';
+
+  return `あなたは家庭料理のレシピ作成アシスタントです。以下の条件でレシピを1つ考えてください。
+
+## 手元にある食材
+${availableIngredients.join('、')}
+
+## 常備している調味料(これらは追加購入なしで使える前提)
+${seasoningNote}
+
+## リクエスト
+${requestNote || '特になし'}
+
+## 条件
+- 上記の食材と常備調味料だけで作れること(足りない材料を要求しない)
+- 分量は2人分を目安に具体的に書く
+- 手順は家庭で再現しやすい粒度で書く
+
+## 出力形式
+次のJSONのみを出力してください。前置き・後書き・コードブロック記号は一切不要です。
+{
+  "title": "レシピ名",
+  "genre": "和食/洋食/中華/韓国/エスニック/イタリアン/デザート/その他 のいずれか",
+  "ingredients": ["食材 分量", ...],
+  "seasonings": ["調味料 分量", ...],
+  "steps": ["手順1", "手順2", ...],
+  "point": "ワンポイントアドバイス"
+}`;
+}
+
+function buildImportPrompt(url: string, pageText: string): string {
+  return `あなたは家庭料理のレシピ作成アシスタントです。以下はレシピサイトやレシピ動画のページから取得したテキストです。この中からレシピ情報を抽出し、JSON形式で出力してください。
+
+## 取得したページのテキスト(URL: ${url})
+${pageText}
+
+## 条件
+- ページ内に複数レシピがある場合は、最も主要なレシピ1つを対象にする
+- 分量や手順はページの記載をできるだけそのまま使う(不明な場合は無理に創作しない)
+- レシピ情報が見つからない場合は、他のフィールドを一切含めず {"error": "レシピ情報が見つかりませんでした"} だけを出力する
+
+## 出力形式
+次のJSONのみを出力してください。前置き・後書き・コードブロック記号は一切不要です。
+{
+  "title": "レシピ名",
+  "genre": "和食/洋食/中華/韓国/エスニック/イタリアン/デザート/その他 のいずれか",
+  "ingredients": ["食材 分量", ...],
+  "seasonings": ["調味料 分量", ...],
+  "steps": ["手順1", "手順2", ...],
+  "point": "ワンポイントアドバイス(無ければ空文字)"
+}`;
+}
+
+// DOMパーサーを追加せず、正規表現だけでタイトル・meta description・本文テキストを抜き出す簡易実装。
+// YouTube等JSでレンダリングされるページは本文が取れないことがあるが、
+// title/meta descriptionだけでも抽出の手がかりになるため残す。
+function extractPageText(html: string): string {
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const descMatch =
+    html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i) ||
+    html.match(/<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["']/i);
+  const ogDescMatch =
+    html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']*)["']/i) ||
+    html.match(/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:description["']/i);
+
+  const bodyText = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<[^>]+>/g, '\n')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+
+  const parts = [
+    titleMatch ? `タイトル: ${titleMatch[1].trim()}` : '',
+    descMatch ? `概要: ${descMatch[1].trim()}` : '',
+    ogDescMatch ? `OG概要: ${ogDescMatch[1].trim()}` : '',
+    bodyText,
+  ].filter(Boolean);
+
+  return parts.join('\n\n').slice(0, 8000);
+}
+
+// エッジ関数が任意のURLをサーバー側からfetchするため、SSRF対策として
+// localhost・プライベートIP・クラウドメタデータIPへのアクセスを拒否する。
+// (DNSリバインディングまでは防げない簡易チェックだが、無いよりは大きく安全)
+function isBlockedHost(hostname: string): boolean {
+  const lower = hostname.toLowerCase();
+  if (lower === 'localhost' || lower.endsWith('.localhost')) return true;
+  if (lower === '0.0.0.0' || lower === '169.254.169.254') return true;
+  if (lower === '::1' || lower.startsWith('fc') || lower.startsWith('fd')) return true;
+
+  const ipv4 = lower.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const a = Number(ipv4[1]);
+    const b = Number(ipv4[2]);
+    if (a === 127) return true; // loopback
+    if (a === 10) return true; // 10.0.0.0/8
+    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+    if (a === 192 && b === 168) return true; // 192.168.0.0/16
+  }
+  return false;
+}
