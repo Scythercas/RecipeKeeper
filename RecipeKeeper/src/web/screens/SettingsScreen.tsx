@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { confirmDialog } from '../../dialog';
 import { loadDefaultSeasonings, saveDefaultSeasonings } from '../../storage';
 import { useAuth } from '../AuthContext';
 import { supabase } from '../supabaseClient';
@@ -23,10 +24,21 @@ export default function SettingsScreen() {
   const [passwordUpdated, setPasswordUpdated] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
+  const [aiPoints, setAiPoints] = useState<number | null>(null);
 
   useEffect(() => {
     loadDefaultSeasonings().then(setSeasonings);
   }, []);
+
+  useEffect(() => {
+    if (!session?.user.id) return;
+    supabase
+      .from('ai_points')
+      .select('points')
+      .eq('user_id', session.user.id)
+      .single()
+      .then(({ data }) => setAiPoints(data?.points ?? null));
+  }, [session?.user.id]);
 
   const passwordMismatch =
     confirmNewPassword.length > 0 && newPassword !== confirmNewPassword;
@@ -68,9 +80,10 @@ export default function SettingsScreen() {
   }
 
   async function handleDeleteAccount() {
-    // react-native-webのAlert.alertは何も表示しない実装のため、このWeb専用画面ではwindow.confirmを使う。
-    const confirmed = window.confirm(
-      '本当にアカウントを削除しますか?\n保存されているレシピ・調理記録・写真もすべて削除され、元に戻せません。'
+    const confirmed = await confirmDialog(
+      '本当にアカウントを削除しますか?',
+      '保存されているレシピ・調理記録・写真もすべて削除され、元に戻せません。',
+      '削除'
     );
     if (!confirmed) return;
 
@@ -116,8 +129,9 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Section title="アカウント">
+      <Section title="アカウント" footer="AIポイントは1日1回ログインすると1ポイント増えます。今後追加予定のAIによるレシピ管理補助機能で使用します。">
         <Text style={styles.accountEmail}>{session?.user.email}</Text>
+        {aiPoints !== null && <Text style={styles.aiPointsText}>🎫 AIポイント: {aiPoints}</Text>}
         <Pressable onPress={() => supabase.auth.signOut()}>
           <Text style={styles.signOutText}>サインアウト</Text>
         </Pressable>
@@ -257,6 +271,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 13, color: '#666', fontWeight: '600' },
   footer: { fontSize: 12, color: '#999', lineHeight: 17 },
   accountEmail: { fontSize: 15 },
+  aiPointsText: { fontSize: 14, color: '#b8860b' },
   signOutText: { color: '#ff3b30', fontSize: 14 },
   deleteAccountButton: {
     borderWidth: StyleSheet.hairlineWidth,

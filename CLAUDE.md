@@ -46,6 +46,9 @@ RecipeKeeper/                      Expoプロジェクトルート(README.mdの�
 └── src/
     ├── types.ts                  Recipe / CookLog 型、GENRES一覧
     ├── id.ts                     依存ライブラリなしの簡易ID生成
+    ├── dialog.ts / dialog.web.ts 確認・エラーダイアログ(confirmDialog/alertDialog)。
+    │                             ネイティブはAlert.alert、Webはwindow.confirm/alert
+    │                             (react-native-webのAlert.alertがno-opなため必須)
     ├── storage.ts                AsyncStorageへのレシピ・常備調味料の永続化
     ├── photoStorage.ts           写真のリサイズ・JPEG圧縮・永続ディレクトリへの保存
     ├── claude.ts                 Anthropic Messages API直呼び出し + expo-secure-store
@@ -121,10 +124,14 @@ Metro/Expo Routerは`foo.web.tsx`という同名ファイルをWebビルド時�
 ### Supabaseスキーマ・設定
 
 - テーブル: `recipes`(`rating int check (rating between 1 and 10)`列を含む、未評価は`NULL`), `cook_logs`(`user_id`で所有者を持ちRLSで分離。`photos text[] not null default '{}'`列を追加済み、2026年7月), `ai_generation_usage`(1ユーザー1日ごとの生成回数。`try_consume_ai_generation` SECURITY DEFINER関数経由でのみ加算でき、`ai_generation_usage_owner_select`ポリシーで本人だけ閲覧可)。
+- `ai_points`テーブル(2026年7月追加)。`user_id uuid primary key references auth.users(id)`, `points int not null default 10`, `last_login_bonus_date date`。**今後追加予定のAIによるレシピ管理補助機能**(まだ未実装)の利用制限を管理するための残高で、現行のレシピ生成機能の1日5回制限(`ai_generation_usage`)とは別の独立した仕組み。RLSは本人のみ`select`可(`ai_points_owner_select`)、更新は下記の2つのSECURITY DEFINER関数経由のみ。
+  - `handle_new_user_ai_points()`: `auth.users`への`insert`トリガー(`on_auth_user_created_ai_points`)から呼ばれ、新規サインアップ時に`points = 10`の行を自動作成する。
+  - `claim_daily_login_bonus()`: `auth.uid()`を内部で使うため`p_user_id`引数を取らず、Edge Function経由にせず`authenticated`ロールに直接`grant execute`している(他人のポイントを操作できないため安全)。`last_login_bonus_date < current_date`(またはNULL)の場合のみ`points`を+1して`last_login_bonus_date`を今日の日付に更新、既に今日付与済みなら何もせず現在の残高を返す。`src/web/AuthContext.tsx`の`AuthProvider`が`onAuthStateChange`/`getSession`でセッションを検知するたびに(ただし同じユーザーIDに対しては`claimedUserIdRef`で1回だけ)このRPCを呼ぶ。**上限(キャップ)は設けていない**——「全ユーザーを10で初期化し、ログインで1日1ポイント増える」という指示をそのまま実装したもので、無限に貯まり続ける設計になっている。上限が必要な場合は`claim_daily_login_bonus()`の`update`に`least(points + 1, N)`を足すだけで対応できる。既存ユーザーへの初期10ポイント付与はマイグレーションSQLで一括`insert`済み(マイグレーションファイルは作成せず`supabase db query --linked --file`で直接実行、他のスキーマ変更と同じ方針)。残高は`src/web/screens/SettingsScreen.tsx`の「アカウント」セクションに表示している(消費する機能がまだ無いので表示のみ)。
 - **`try_consume_ai_generation`はアプリ所有者本人のアカウント(`garyo20020124@gmail.com`)だけ、1日の生成回数上限を実質無制限(`2147483647`)にしている**(2026年7月、`p_user_id`から`auth.users.email`を引いてハードコードされたメールアドレスと比較)。カウント自体は他ユーザーと同様に記録されるため、利用状況の把握はできる。この関数を編集する際は必ずこの分岐を維持すること。`src/components/AIUsageIndicator.web.tsx`の`UNLIMITED_EMAIL`定数も同じメールアドレスをハードコードしており、該当アカウントでは「残りX/5」ではなく「本日の生成回数: X回(無制限アカウント)」と表示する。両者は独立した箇所に同じ文字列がある(共有定数化していない)ので、対象メールアドレスを変更する場合は両方直すこと。
 - Storage: `recipe-photos`バケット(公開・パスは`${user_id}/${filename}.jpg`というフラット構成。レシピID単位にしていないのは、新規レシピ作成時点ではレシピIDがまだ確定していないため)。
 - Edge Function: `supabase/functions/generate-recipe/`。JWT検証 → レート制限判定 → プロンプト構築 → Anthropic呼び出し、を一括で行う。`ANTHROPIC_API_KEY`と`DAILY_AI_LIMIT`をシークレットとして保持。
-- Edge Function: `supabase/functions/delete-account/`(2026年7月追加、アカウント削除機能)。JWT検証 → `recipe-photos`バケットの`${user_id}/`配下を`service_role`で列挙・削除 → `auth.admin.deleteUser(userId)`。`recipes`/`cook_logs`/`ai_generation_usage`はauth.usersへの`on delete cascade`で自動削除されるため、Storageのファイルだけ手動で先に消す(外部キーで紐付いていないため)。`src/web/screens/SettingsScreen.tsx`の「アカウントの削除」ボタンから`supabase.functions.invoke('delete-account')`で呼び出し、成功後に`supabase.auth.signOut()`してログイン画面へ戻す。**確認ダイアログに`Alert.alert`は使えない**(react-native-webの実装が`static alert() {}`という完全な no-op のため、ネイティブでは動くがWebでは何も起きない。実は`app/recipe/[id]/edit.tsx`のレシピ削除確認もこれに該当し、Web版では削除ボタンを押しても無反応になっている既知の未修正バグ)。そのためこのWeb専用画面では素の`window.confirm`を使っている。
+- Edge Function: `supabase/functions/delete-account/`(2026年7月追加、アカウント削除機能)。JWT検証 → `recipe-photos`バケットの`${user_id}/`配下を`service_role`で列挙・削除 → `auth.admin.deleteUser(userId)`。`recipes`/`cook_logs`/`ai_generation_usage`/`ai_points`はauth.usersへの`on delete cascade`で自動削除されるため、Storageのファイルだけ手動で先に消す(外部キーで紐付いていないため)。`src/web/screens/SettingsScreen.tsx`の「アカウントの削除」ボタンから`supabase.functions.invoke('delete-account')`で呼び出し、成功後に`supabase.auth.signOut()`してログイン画面へ戻す。
+- **`Alert.alert`は確認ダイアログとして使えない**(react-native-webの実装が`static alert() {}`という完全な no-op のため、ネイティブでは動くがWebでは何も起きない)。この問題により`app/recipe/[id]/edit.tsx`のレシピ削除確認がWeb版で無反応になっていたバグを2026年7月に発見・修正した。対応として`src/dialog.ts`(ネイティブ、`Alert.alert`をPromiseでラップ)と`src/dialog.web.ts`(Web、`window.confirm`/`window.alert`)を追加し、`confirmDialog`/`alertDialog`という共通APIに統一。`edit.tsx`(共有ファイル)と`SettingsScreen.tsx`(アカウント削除の確認)の両方がこれ経由になっている。**新しく確認ダイアログやエラー表示を追加する場合は素の`Alert.alert`を使わず、必ずこの`src/dialog`経由にすること**(ただし他の既存のエラー用`Alert.alert`呼び出し——一覧画面の削除失敗時など——は今回のバグ修正の対象外で、Web版では同様に無反応のまま残っている)。
 - ローカルでのSupabase CLI操作(`supabase secrets set` / `supabase functions deploy` / `supabase db query --linked`でのSQL実行等)は`supabase login`のブラウザ認証さえ済んでいれば、このエージェントが直接実行できる(実際にRLSポリシー追加などを代行した実績あり)。ダッシュボードでの手動設定が必要なのは主にAuth周りのURL Configuration(Site URL / Redirect URLs)。
 
 ### `cloudflare-worker/` は廃止済み(削除はまだ)

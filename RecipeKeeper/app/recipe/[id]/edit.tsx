@@ -1,8 +1,9 @@
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import React, { useLayoutEffect } from 'react';
-import { Alert, Pressable, Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 
 import RecipeForm from '../../../src/components/RecipeForm';
+import { alertDialog, confirmDialog } from '../../../src/dialog';
 import { useRecipe, useRecipes } from '../../../src/RecipesContext';
 import { useToast } from '../../../src/ToastContext';
 import type { NewRecipeInput } from '../../../src/types';
@@ -30,11 +31,9 @@ export default function EditRecipeScreen() {
     return <Text style={{ padding: 16 }}>レシピが見つかりません</Text>;
   }
 
-  function confirmDelete() {
-    Alert.alert('レシピを削除しますか?', 'この操作は取り消せません。', [
-      { text: 'キャンセル', style: 'cancel' },
-      { text: '削除', style: 'destructive', onPress: performDelete },
-    ]);
+  async function confirmDelete() {
+    const confirmed = await confirmDialog('レシピを削除しますか?', 'この操作は取り消せません。', '削除');
+    if (confirmed) performDelete();
   }
 
   async function performDelete() {
@@ -43,7 +42,7 @@ export default function EditRecipeScreen() {
       showToast('レシピを削除しました');
       router.dismissTo('/');
     } catch (e) {
-      Alert.alert('削除に失敗しました', e instanceof Error ? e.message : String(e));
+      alertDialog('削除に失敗しました', e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -53,7 +52,7 @@ export default function EditRecipeScreen() {
       showToast('レシピを更新しました');
       router.back();
     } catch (e) {
-      Alert.alert('更新に失敗しました', e instanceof Error ? e.message : String(e));
+      alertDialog('更新に失敗しました', e instanceof Error ? e.message : String(e));
     }
   }
 
