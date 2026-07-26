@@ -123,6 +123,8 @@ export default function RecipeListScreen() {
         placeholderTextColor="#999"
         value={searchText}
         onChangeText={setSearchText}
+        autoComplete="off"
+        textContentType="none"
       />
 
       <Text style={styles.ingredientLabel}>カテゴリーで絞り込む(複数選択ですべて含むレシピだけを表示)</Text>
@@ -147,6 +149,8 @@ export default function RecipeListScreen() {
         placeholderTextColor="#999"
         value={ingredientFilter}
         onChangeText={setIngredientFilter}
+        autoComplete="off"
+        textContentType="none"
       />
 
       <Text style={styles.ingredientLabel}>除外する食材(いずれかを含むレシピを非表示)</Text>
@@ -156,6 +160,8 @@ export default function RecipeListScreen() {
         placeholderTextColor="#999"
         value={excludeIngredientFilter}
         onChangeText={setExcludeIngredientFilter}
+        autoComplete="off"
+        textContentType="none"
       />
 
       <View style={styles.sortRow}>
