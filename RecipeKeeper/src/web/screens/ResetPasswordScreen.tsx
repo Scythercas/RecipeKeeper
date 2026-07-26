@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { cardStyle, colors } from '../../theme';
 import { supabase } from '../supabaseClient';
 
 export default function ResetPasswordScreen() {
@@ -29,44 +30,49 @@ export default function ResetPasswordScreen() {
 
   if (isDone) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>パスワードを更新しました</Text>
-        <Pressable style={styles.button} onPress={() => router.replace('/')}>
-          <Text style={styles.buttonText}>レシピ一覧へ</Text>
-        </Pressable>
+      <View style={styles.screen}>
+        <View style={styles.card}>
+          <Text style={styles.title}>パスワードを更新しました</Text>
+          <Pressable style={styles.button} onPress={() => router.replace('/')}>
+            <Text style={styles.buttonText}>レシピ一覧へ</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>新しいパスワードを設定</Text>
+    <View style={styles.screen}>
+      <View style={styles.card}>
+        <Text style={styles.title}>新しいパスワードを設定</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="新しいパスワード(6文字以上)"
-        placeholderTextColor="#999"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        onSubmitEditing={handleUpdate}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="新しいパスワード(6文字以上)"
+          placeholderTextColor="#999"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          onSubmitEditing={handleUpdate}
+        />
 
-      {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
+        {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
-      <Pressable
-        style={[styles.button, !canSubmit && styles.buttonDisabled]}
-        onPress={handleUpdate}
-        disabled={!canSubmit}
-      >
-        <Text style={styles.buttonText}>{isLoading ? '更新中…' : 'パスワードを更新'}</Text>
-      </Pressable>
+        <Pressable
+          style={[styles.button, !canSubmit && styles.buttonDisabled]}
+          onPress={handleUpdate}
+          disabled={!canSubmit}
+        >
+          <Text style={styles.buttonText}>{isLoading ? '更新中…' : 'パスワードを更新'}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12, maxWidth: 400, width: '100%', alignSelf: 'center' },
+  screen: { flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  card: { ...cardStyle, padding: 24, gap: 12, maxWidth: 400, width: '100%' },
   title: { fontSize: 22, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -76,9 +82,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
   },
-  errorText: { color: '#ff3b30', fontSize: 13 },
+  errorText: { color: colors.destructive, fontSize: 13 },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',

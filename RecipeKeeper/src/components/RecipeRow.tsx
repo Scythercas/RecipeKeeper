@@ -40,7 +40,7 @@ export default function RecipeRow({ recipe }: { recipe: Recipe }) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 12 },
   thumb: { width: 56, height: 56, borderRadius: 8 },
   thumbPlaceholder: { backgroundColor: '#eee', alignItems: 'center', justifyContent: 'center' },
   thumbPlaceholderText: { fontSize: 22 },

@@ -2,6 +2,7 @@ import { Link, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
+import { cardStyle, colors } from '../../theme';
 import { supabase } from '../supabaseClient';
 
 const APP_ICON = require('../../../assets/icon.png');
@@ -133,7 +134,7 @@ export default function SignupScreen() {
   );
 
   return (
-    <ScrollView contentContainerStyle={styles.page}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.page}>
       <View style={[styles.layout, isWide && styles.layoutWide]}>
         <View style={[styles.heroPane, isWide && styles.heroPaneWide]}>
           <HeroIllustration />
@@ -159,6 +160,7 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
+  screen: { backgroundColor: colors.background },
   page: { flexGrow: 1, alignItems: 'center', padding: 24, paddingVertical: 40 },
   layout: { width: '100%', maxWidth: 1040, gap: 32 },
   layoutWide: { flexDirection: 'row', alignItems: 'center' },
@@ -194,16 +196,7 @@ const styles = StyleSheet.create({
   featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   featureEmoji: { fontSize: 16 },
   featureText: { flex: 1, fontSize: 13, color: '#444', lineHeight: 19 },
-  card: {
-    width: '100%',
-    maxWidth: 400,
-    gap: 12,
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#eee',
-  },
+  card: { ...cardStyle, width: '100%', maxWidth: 400, gap: 12, borderRadius: 16, padding: 24 },
   title: { fontSize: 22, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
   subtitle: { fontSize: 14, color: '#666', textAlign: 'center', lineHeight: 20, marginBottom: 16 },
   input: {
@@ -214,9 +207,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
   },
-  errorText: { color: '#ff3b30', fontSize: 13 },
+  errorText: { color: colors.destructive, fontSize: 13 },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
@@ -224,5 +217,5 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: 'white', fontSize: 16, fontWeight: '700' },
-  link: { color: '#007AFF', fontSize: 13, textAlign: 'center', marginTop: 16 },
+  link: { color: colors.accent, fontSize: 13, textAlign: 'center', marginTop: 16 },
 });

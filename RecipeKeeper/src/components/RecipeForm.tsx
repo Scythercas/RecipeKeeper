@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useRecipes } from '../RecipesContext';
+import { cardStyle, colors } from '../theme';
 import { GENRES } from '../types';
 import type { NewRecipeInput, Recipe } from '../types';
 import PhotoAttachEditor from './PhotoAttachEditor';
@@ -73,7 +74,7 @@ export default function RecipeForm({ initial, onSave }: Props) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Section title="基本情報">
         <TextInput
           style={styles.input}
@@ -200,8 +201,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 20, paddingBottom: 40 },
-  section: { gap: 8 },
+  screen: { backgroundColor: colors.background },
+  content: { padding: 16, gap: 12, paddingBottom: 40 },
+  section: { ...cardStyle, padding: 16, gap: 8 },
   sectionTitle: { fontSize: 13, color: '#666', fontWeight: '600' },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -228,7 +230,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#eee',
   },
-  genreChipSelected: { backgroundColor: '#007AFF' },
+  genreChipSelected: { backgroundColor: colors.accent },
   genreChipText: { fontSize: 13, color: '#333' },
   genreChipTextSelected: { color: 'white' },
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
@@ -241,7 +243,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   addButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -249,7 +251,7 @@ const styles = StyleSheet.create({
   addButtonDisabled: { opacity: 0.4 },
   addButtonText: { color: 'white', fontWeight: '600' },
   saveButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',

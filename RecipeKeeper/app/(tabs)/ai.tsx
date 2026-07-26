@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,7 +11,9 @@ import {
 } from 'react-native';
 
 import AIUsageIndicator from '../../src/components/AIUsageIndicator';
+import { alertDialog } from '../../src/dialog';
 import { useRecipes } from '../../src/RecipesContext';
+import { cardStyle, colors } from '../../src/theme';
 import { useToast } from '../../src/ToastContext';
 import { generateRecipe, importRecipeFromUrl, type GeneratedRecipe } from '../../src/claude';
 import { loadDefaultSeasonings } from '../../src/storage';
@@ -105,12 +106,12 @@ export default function AIGenerateScreen() {
       setIngredientsText('');
       setRequestNote('');
     } catch (e) {
-      Alert.alert('保存に失敗しました', e instanceof Error ? e.message : String(e));
+      alertDialog('保存に失敗しました', e instanceof Error ? e.message : String(e));
     }
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Section title="レシピサイトのURLから取り込む">
         <Text style={styles.mutedText}>
           クラシル・クックパッド・YouTube・レシピ記事などのURLを貼り付けると、AIがレシピを抽出します(サイトによっては取り込めない場合があります)
@@ -242,8 +243,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 16, paddingBottom: 40 },
-  section: { gap: 8 },
+  screen: { backgroundColor: colors.background },
+  content: { padding: 16, gap: 12, paddingBottom: 40 },
+  section: { ...cardStyle, padding: 16, gap: 8 },
   sectionTitle: { fontSize: 13, color: '#666', fontWeight: '600', marginTop: 8 },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -268,7 +270,7 @@ const styles = StyleSheet.create({
   warnText: { fontSize: 12, color: '#e07a20' },
   mutedText: { fontSize: 12, color: '#888' },
   importButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
@@ -281,8 +283,8 @@ const styles = StyleSheet.create({
   },
   generateButtonDisabled: { opacity: 0.4 },
   generateButtonText: { color: 'white', fontSize: 16, fontWeight: '700' },
-  errorText: { color: '#ff3b30', fontSize: 14 },
-  resultCard: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#eee', paddingTop: 12, gap: 4 },
+  errorText: { color: colors.destructive, fontSize: 14 },
+  resultCard: { ...cardStyle, padding: 16, gap: 4 },
   resultTitleRow: { flexDirection: 'row', alignItems: 'center' },
   resultTitle: { fontSize: 17, fontWeight: '700' },
   genreBadge: {
@@ -297,7 +299,7 @@ const styles = StyleSheet.create({
   bodyText: { fontSize: 15, lineHeight: 22 },
   saveButton: {
     marginTop: 16,
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',

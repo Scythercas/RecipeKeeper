@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { cardStyle, colors } from '../../theme';
 import { useToast } from '../../ToastContext';
 import { useAuth } from '../AuthContext';
 import { supabase } from '../supabaseClient';
@@ -50,56 +51,60 @@ export default function ChangePasswordScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Text style={styles.description}>
-        本人確認のため、現在のパスワードの入力が必要です。新しいパスワードは6文字以上にしてください。
-      </Text>
-      <TextInput
-        style={styles.input}
-        placeholder="現在のパスワード"
-        placeholderTextColor="#999"
-        value={currentPassword}
-        onChangeText={setCurrentPassword}
-        secureTextEntry
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="新しいパスワード"
-        placeholderTextColor="#999"
-        value={newPassword}
-        onChangeText={setNewPassword}
-        secureTextEntry
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="新しいパスワード(確認)"
-        placeholderTextColor="#999"
-        value={confirmNewPassword}
-        onChangeText={setConfirmNewPassword}
-        secureTextEntry
-        autoCapitalize="none"
-        autoCorrect={false}
-        onSubmitEditing={handleSubmit}
-      />
-      {passwordMismatch && <Text style={styles.errorText}>新しいパスワードが一致しません</Text>}
-      {error && <Text style={styles.errorText}>{error}</Text>}
-      <Pressable
-        style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
-        onPress={handleSubmit}
-        disabled={!canSubmit}
-      >
-        <Text style={styles.submitButtonText}>{isUpdating ? '更新中…' : '更新する'}</Text>
-      </Pressable>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <View style={styles.card}>
+        <Text style={styles.description}>
+          本人確認のため、現在のパスワードの入力が必要です。新しいパスワードは6文字以上にしてください。
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="現在のパスワード"
+          placeholderTextColor="#999"
+          value={currentPassword}
+          onChangeText={setCurrentPassword}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="新しいパスワード"
+          placeholderTextColor="#999"
+          value={newPassword}
+          onChangeText={setNewPassword}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="新しいパスワード(確認)"
+          placeholderTextColor="#999"
+          value={confirmNewPassword}
+          onChangeText={setConfirmNewPassword}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          onSubmitEditing={handleSubmit}
+        />
+        {passwordMismatch && <Text style={styles.errorText}>新しいパスワードが一致しません</Text>}
+        {error && <Text style={styles.errorText}>{error}</Text>}
+        <Pressable
+          style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+        >
+          <Text style={styles.submitButtonText}>{isUpdating ? '更新中…' : '更新する'}</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 12 },
+  screen: { backgroundColor: colors.background },
+  content: { padding: 16 },
+  card: { ...cardStyle, padding: 16, gap: 12 },
   description: { fontSize: 13, color: '#666', lineHeight: 18, marginBottom: 4 },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -108,9 +113,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  errorText: { color: '#ff3b30', fontSize: 13 },
+  errorText: { color: colors.destructive, fontSize: 13 },
   submitButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',

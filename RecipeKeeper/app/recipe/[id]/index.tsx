@@ -19,6 +19,7 @@ import RatingPicker from '../../../src/components/RatingPicker';
 import { alertDialog } from '../../../src/dialog';
 import { duplicatePhoto } from '../../../src/photoStorage';
 import { useRecipe, useRecipes } from '../../../src/RecipesContext';
+import { cardStyle, colors } from '../../../src/theme';
 import { useToast } from '../../../src/ToastContext';
 import { cookCount } from '../../../src/types';
 
@@ -243,11 +244,11 @@ function ListSection({ title, items }: { title: string; items: string[] }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'white' },
-  scrollContent: { paddingBottom: 100 },
+  container: { flex: 1, backgroundColor: colors.background },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 100, gap: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  headerButton: { fontSize: 16, color: '#007AFF' },
-  section: { paddingHorizontal: 16, paddingVertical: 12, gap: 6, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#eee' },
+  headerButton: { fontSize: 16, color: colors.accent },
+  section: { ...cardStyle, padding: 16, gap: 6 },
   sectionTitle: { fontSize: 13, color: '#666', fontWeight: '600', marginBottom: 4 },
   metaRow: {
     flexDirection: 'row',
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
   },
   genreBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, flexShrink: 1 },
   metaRightGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  ratingText: { color: '#b8860b', fontWeight: '600' },
+  ratingText: { color: colors.gold, fontWeight: '600' },
   genreBadge: {
     fontSize: 13,
     backgroundColor: '#f0f0f0',
@@ -267,7 +268,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   cookCountText: { color: '#e07a20', fontWeight: '600' },
-  link: { color: '#007AFF', marginTop: 4 },
+  link: { color: colors.accent, marginTop: 4 },
   bodyText: { fontSize: 15, color: '#222', lineHeight: 22 },
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   stepNumber: {
@@ -278,7 +279,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepNumberText: { fontSize: 12, fontWeight: '700', color: '#007AFF' },
+  stepNumberText: { fontSize: 12, fontWeight: '700', color: colors.accent },
   stepText: { flex: 1, fontSize: 15, lineHeight: 22 },
   emptyLogText: { color: '#999' },
   logRow: {
@@ -293,19 +294,19 @@ const styles = StyleSheet.create({
   logTweak: { fontSize: 14, marginTop: 2 },
   logPhotoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
   logPhotoThumb: { width: 56, height: 56, borderRadius: 6 },
-  deleteLog: { fontSize: 12, color: '#ff3b30' },
+  deleteLog: { fontSize: 12, color: colors.destructive },
   cookButtonBar: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     padding: 16,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: 'rgba(245,241,234,0.95)',
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: '#eee',
+    borderColor: colors.cardBorder,
   },
   cookButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
@@ -333,5 +334,5 @@ const styles = StyleSheet.create({
   },
   modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
   modalCancel: { fontSize: 16, color: '#888' },
-  modalConfirm: { fontSize: 16, color: '#007AFF', fontWeight: '700' },
+  modalConfirm: { fontSize: 16, color: colors.accent, fontWeight: '700' },
 });

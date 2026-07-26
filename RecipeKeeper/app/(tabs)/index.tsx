@@ -6,6 +6,7 @@ import FilterChip from '../../src/components/FilterChip';
 import RecipeRow from '../../src/components/RecipeRow';
 import SwipeableRow from '../../src/components/SwipeableRow';
 import { useRecipes } from '../../src/RecipesContext';
+import { cardStyle, colors } from '../../src/theme';
 import { useToast } from '../../src/ToastContext';
 import { cookCount, type Recipe } from '../../src/types';
 
@@ -117,61 +118,63 @@ export default function RecipeListScreen() {
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.search}
-        placeholder="レシピ名で検索"
-        placeholderTextColor="#999"
-        value={searchText}
-        onChangeText={setSearchText}
-        autoComplete="off"
-        textContentType="none"
-      />
+      <View style={styles.filtersCard}>
+        <TextInput
+          style={styles.search}
+          placeholder="レシピ名で検索"
+          placeholderTextColor="#999"
+          value={searchText}
+          onChangeText={setSearchText}
+          autoComplete="off"
+          textContentType="none"
+        />
 
-      <Text style={styles.ingredientLabel}>カテゴリーで絞り込む(複数選択ですべて含むレシピだけを表示)</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.genreScroll}>
-        <View style={styles.genreRow}>
-          <FilterChip label="すべて" isSelected={selectedGenres.length === 0} onPress={() => setSelectedGenres([])} />
-          {genresInUse.map((genre) => (
-            <FilterChip
-              key={genre}
-              label={genre}
-              isSelected={selectedGenres.includes(genre)}
-              onPress={() => toggleGenreFilter(genre)}
-            />
+        <Text style={styles.ingredientLabel}>カテゴリーで絞り込む(複数選択ですべて含むレシピだけを表示)</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.genreScroll}>
+          <View style={styles.genreRow}>
+            <FilterChip label="すべて" isSelected={selectedGenres.length === 0} onPress={() => setSelectedGenres([])} />
+            {genresInUse.map((genre) => (
+              <FilterChip
+                key={genre}
+                label={genre}
+                isSelected={selectedGenres.includes(genre)}
+                onPress={() => toggleGenreFilter(genre)}
+              />
+            ))}
+          </View>
+        </ScrollView>
+
+        <Text style={styles.ingredientLabel}>食材で絞り込む(すべて含むレシピだけを表示)</Text>
+        <TextInput
+          style={styles.ingredientInput}
+          placeholder="例: 鶏肉, なす"
+          placeholderTextColor="#999"
+          value={ingredientFilter}
+          onChangeText={setIngredientFilter}
+          autoComplete="off"
+          textContentType="none"
+        />
+
+        <Text style={styles.ingredientLabel}>除外する食材(いずれかを含むレシピを非表示)</Text>
+        <TextInput
+          style={styles.ingredientInput}
+          placeholder="例: パクチー, レーズン"
+          placeholderTextColor="#999"
+          value={excludeIngredientFilter}
+          onChangeText={setExcludeIngredientFilter}
+          autoComplete="off"
+          textContentType="none"
+        />
+
+        <View style={styles.sortRow}>
+          {(Object.keys(SORT_LABELS) as SortOrder[]).map((order) => (
+            <Pressable key={order} onPress={() => setSortOrder(order)} style={styles.sortButton}>
+              <Text style={[styles.sortLabel, sortOrder === order && styles.sortLabelActive]}>
+                {SORT_LABELS[order]}
+              </Text>
+            </Pressable>
           ))}
         </View>
-      </ScrollView>
-
-      <Text style={styles.ingredientLabel}>食材で絞り込む(すべて含むレシピだけを表示)</Text>
-      <TextInput
-        style={styles.ingredientInput}
-        placeholder="例: 鶏肉, なす"
-        placeholderTextColor="#999"
-        value={ingredientFilter}
-        onChangeText={setIngredientFilter}
-        autoComplete="off"
-        textContentType="none"
-      />
-
-      <Text style={styles.ingredientLabel}>除外する食材(いずれかを含むレシピを非表示)</Text>
-      <TextInput
-        style={styles.ingredientInput}
-        placeholder="例: パクチー, レーズン"
-        placeholderTextColor="#999"
-        value={excludeIngredientFilter}
-        onChangeText={setExcludeIngredientFilter}
-        autoComplete="off"
-        textContentType="none"
-      />
-
-      <View style={styles.sortRow}>
-        {(Object.keys(SORT_LABELS) as SortOrder[]).map((order) => (
-          <Pressable key={order} onPress={() => setSortOrder(order)} style={styles.sortButton}>
-            <Text style={[styles.sortLabel, sortOrder === order && styles.sortLabelActive]}>
-              {SORT_LABELS[order]}
-            </Text>
-          </Pressable>
-        ))}
       </View>
 
       {filtered.length === 0 ? (
@@ -187,7 +190,6 @@ export default function RecipeListScreen() {
           data={filtered}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
           renderItem={({ item }) => (
             <SwipeableRow
               isOpen={openRowId === item.id}
@@ -215,11 +217,10 @@ export default function RecipeListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'white' },
-  headerButton: { fontSize: 22, color: '#007AFF', paddingHorizontal: 8 },
+  container: { flex: 1, backgroundColor: colors.background },
+  headerButton: { fontSize: 22, color: colors.accent, paddingHorizontal: 8 },
+  filtersCard: { ...cardStyle, marginHorizontal: 16, marginTop: 12, padding: 16 },
   search: {
-    marginHorizontal: 16,
-    marginTop: 8,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#ccc',
     borderRadius: 8,
@@ -231,16 +232,14 @@ const styles = StyleSheet.create({
   // チップの実測高さ(paddingVertical 6*2 + 文字の行の高さ)に余裕を持たせた
   // 固定値を明示する(react-navigationタブバーの高さ問題と同種の対策)。
   genreScroll: { marginTop: 12, flexGrow: 0, height: 40 },
-  genreRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 },
+  genreRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ingredientLabel: {
-    marginHorizontal: 16,
     marginTop: 12,
     fontSize: 12,
     color: '#666',
     fontWeight: '600',
   },
   ingredientInput: {
-    marginHorizontal: 16,
     marginTop: 6,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#ccc',
@@ -248,12 +247,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16, marginTop: 8 },
+  sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 12 },
   sortButton: { paddingVertical: 4 },
   sortLabel: { fontSize: 12, color: '#999' },
-  sortLabelActive: { color: '#007AFF', fontWeight: '600' },
-  listContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
-  separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#eee' },
+  sortLabelActive: { color: colors.accent, fontWeight: '600' },
+  listContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24, gap: 10 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   emptyText: { textAlign: 'center', color: '#888', fontSize: 14, lineHeight: 20 },
 });

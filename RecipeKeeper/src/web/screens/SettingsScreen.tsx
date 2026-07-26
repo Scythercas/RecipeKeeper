@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 
 import { confirmDialog } from '../../dialog';
 import { loadDefaultSeasonings, saveDefaultSeasonings } from '../../storage';
+import { cardStyle, colors } from '../../theme';
 import { useAuth } from '../AuthContext';
 import { supabase } from '../supabaseClient';
 
@@ -206,32 +207,20 @@ function Card({
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: '#F5F1EA' },
+  screen: { backgroundColor: colors.background },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 14,
-    padding: 16,
-    gap: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#EDE7DD',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-  },
-  cardGold: { backgroundColor: '#FBF3E0', borderColor: '#F0DFB8' },
-  cardDanger: { borderColor: '#f7d6d3' },
+  card: { ...cardStyle, padding: 16, gap: 8 },
+  cardGold: { backgroundColor: colors.goldTint, borderColor: colors.goldTintBorder },
+  cardDanger: { borderColor: colors.dangerTintBorder },
   cardTitle: { fontSize: 15, fontWeight: '700', color: '#333' },
   cardFooter: { fontSize: 12, color: '#888', lineHeight: 17 },
-  accountEmail: { fontSize: 15, color: '#222' },
-  signOutText: { color: '#ff3b30', fontSize: 14, marginTop: 2 },
+  accountEmail: { fontSize: 15, color: colors.textPrimary },
+  signOutText: { color: colors.destructive, fontSize: 14, marginTop: 2 },
   pointsRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   pointsEmoji: { fontSize: 34 },
   pointsTextGroup: { flexDirection: 'column' },
-  pointsValue: { fontSize: 30, fontWeight: '800', color: '#8a6a10', lineHeight: 34 },
-  pointsLabel: { fontSize: 13, color: '#8a6a10', fontWeight: '600' },
+  pointsValue: { fontSize: 30, fontWeight: '800', color: colors.goldDark, lineHeight: 34 },
+  pointsLabel: { fontSize: 13, color: colors.goldDark, fontWeight: '600' },
   pointsFooter: { fontSize: 12, color: '#9c854f', lineHeight: 17, marginTop: 2 },
   navButton: {
     flexDirection: 'row',
@@ -244,11 +233,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginTop: 2,
   },
-  navButtonText: { fontSize: 15, color: '#007AFF', fontWeight: '600' },
-  navButtonChevron: { fontSize: 18, color: '#007AFF' },
+  navButtonText: { fontSize: 15, color: colors.accent, fontWeight: '600' },
+  navButtonChevron: { fontSize: 18, color: colors.accent },
   collapsibleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  chevron: { fontSize: 12, color: '#007AFF', fontWeight: '600' },
-  errorText: { color: '#ff3b30', fontSize: 13 },
+  chevron: { fontSize: 12, color: colors.accent, fontWeight: '600' },
+  errorText: { color: colors.destructive, fontSize: 13 },
   seasoningRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -258,7 +247,7 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
   },
   seasoningText: { fontSize: 15 },
-  removeText: { color: '#ff3b30', fontSize: 13 },
+  removeText: { color: colors.destructive, fontSize: 13 },
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 4 },
   addInput: {
     flex: 1,
@@ -269,7 +258,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   addButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -278,20 +267,20 @@ const styles = StyleSheet.create({
   addButtonText: { color: 'white', fontWeight: '600' },
   bulkButton: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#007AFF',
+    borderColor: colors.accent,
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
     marginTop: 4,
   },
-  bulkButtonText: { color: '#007AFF', fontWeight: '600' },
+  bulkButtonText: { color: colors.accent, fontWeight: '600' },
   deleteAccountButton: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ff3b30',
+    borderColor: colors.destructive,
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
     marginTop: 2,
   },
-  deleteAccountButtonText: { color: '#ff3b30', fontWeight: '600' },
+  deleteAccountButtonText: { color: colors.destructive, fontWeight: '600' },
 });

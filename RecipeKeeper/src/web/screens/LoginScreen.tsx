@@ -2,6 +2,7 @@ import { Link, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { cardStyle, colors } from '../../theme';
 import { supabase } from '../supabaseClient';
 
 export default function LoginScreen() {
@@ -31,54 +32,57 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>RecipeKeeper</Text>
-      <Text style={styles.subtitle}>ログイン</Text>
+    <View style={styles.screen}>
+      <View style={styles.card}>
+        <Text style={styles.title}>RecipeKeeper</Text>
+        <Text style={styles.subtitle}>ログイン</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="メールアドレス"
-        placeholderTextColor="#999"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="パスワード"
-        placeholderTextColor="#999"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        onSubmitEditing={handleLogin}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="メールアドレス"
+          placeholderTextColor="#999"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="パスワード"
+          placeholderTextColor="#999"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          onSubmitEditing={handleLogin}
+        />
 
-      {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
+        {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
-      <Pressable
-        style={[styles.button, !canSubmit && styles.buttonDisabled]}
-        onPress={handleLogin}
-        disabled={!canSubmit}
-      >
-        <Text style={styles.buttonText}>{isLoading ? 'ログイン中…' : 'ログイン'}</Text>
-      </Pressable>
+        <Pressable
+          style={[styles.button, !canSubmit && styles.buttonDisabled]}
+          onPress={handleLogin}
+          disabled={!canSubmit}
+        >
+          <Text style={styles.buttonText}>{isLoading ? 'ログイン中…' : 'ログイン'}</Text>
+        </Pressable>
 
-      <View style={styles.linksRow}>
-        <Link href="/signup">
-          <Text style={styles.link}>アカウントを作成</Text>
-        </Link>
-        <Link href="/forgot-password">
-          <Text style={styles.link}>パスワードを忘れた場合</Text>
-        </Link>
+        <View style={styles.linksRow}>
+          <Link href="/signup">
+            <Text style={styles.link}>アカウントを作成</Text>
+          </Link>
+          <Link href="/forgot-password">
+            <Text style={styles.link}>パスワードを忘れた場合</Text>
+          </Link>
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12, maxWidth: 400, width: '100%', alignSelf: 'center' },
+  screen: { flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  card: { ...cardStyle, padding: 24, gap: 12, maxWidth: 400, width: '100%' },
   title: { fontSize: 24, fontWeight: '700', textAlign: 'center' },
   subtitle: { fontSize: 15, color: '#666', textAlign: 'center', marginBottom: 12 },
   input: {
@@ -89,9 +93,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
   },
-  errorText: { color: '#ff3b30', fontSize: 13 },
+  errorText: { color: colors.destructive, fontSize: 13 },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
@@ -100,5 +104,5 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: 'white', fontSize: 16, fontWeight: '700' },
   linksRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
-  link: { color: '#007AFF', fontSize: 13 },
+  link: { color: colors.accent, fontSize: 13 },
 });

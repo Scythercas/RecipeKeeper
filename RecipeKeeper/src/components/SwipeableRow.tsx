@@ -1,7 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { cardStyle, colors } from '../theme';
+
 const DELETE_WIDTH = 84;
+const CARD_RADIUS = 14;
 
 type Props = {
   isOpen: boolean;
@@ -67,7 +70,7 @@ export default function SwipeableRow({ isOpen, onOpen, onClose, onDelete, childr
 
 const styles = StyleSheet.create({
   container: { justifyContent: 'center' },
-  content: { backgroundColor: 'white' },
+  content: { ...cardStyle, borderRadius: CARD_RADIUS },
   deleteBackground: {
     ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
@@ -75,9 +78,11 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     width: DELETE_WIDTH,
-    backgroundColor: '#ff3b30',
+    backgroundColor: colors.destructive,
     alignItems: 'center',
     justifyContent: 'center',
+    borderTopRightRadius: CARD_RADIUS,
+    borderBottomRightRadius: CARD_RADIUS,
   },
   deleteText: { color: 'white', fontWeight: '700', fontSize: 14 },
 });
