@@ -40,6 +40,18 @@ export async function saveCompressedPhoto(
   return destFile.uri;
 }
 
+/**
+ * 既存の写真ファイルを新しい独立したファイルとして複製する。
+ * 調理記録の写真をレシピのサムネにも使う際、同じファイルを2箇所から参照すると
+ * 片方を削除したときにもう片方も巻き添えで消えてしまうため、必ず複製してから使う。
+ */
+export async function duplicatePhoto(uri: string): Promise<string> {
+  const sourceFile = new File(uri);
+  const destFile = new File(photosDir(), `${generateId()}.jpg`);
+  await sourceFile.copy(destFile);
+  return destFile.uri;
+}
+
 /** レシピ削除時などに、参照が切れた写真ファイルを掃除する */
 export function deletePhoto(uri: string): void {
   try {

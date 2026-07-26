@@ -2,7 +2,6 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import React, { useLayoutEffect, useState } from 'react';
 import {
-  Alert,
   Image,
   Linking,
   Modal,
@@ -17,6 +16,8 @@ import {
 import PhotoAttachEditor from '../../../src/components/PhotoAttachEditor';
 import PhotoCarousel from '../../../src/components/PhotoCarousel';
 import RatingPicker from '../../../src/components/RatingPicker';
+import { alertDialog } from '../../../src/dialog';
+import { duplicatePhoto } from '../../../src/photoStorage';
 import { useRecipe, useRecipes } from '../../../src/RecipesContext';
 import { useToast } from '../../../src/ToastContext';
 import { cookCount } from '../../../src/types';
@@ -27,7 +28,7 @@ export default function RecipeDetailScreen() {
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const recipe = useRecipe(id);
-  const { addCookLog, deleteCookLog, rateRecipe } = useRecipes();
+  const { addCookLog, deleteCookLog, rateRecipe, updateRecipe } = useRecipes();
   const { showToast } = useToast();
   const navigation = useNavigation();
   const router = useRouter();
@@ -70,12 +71,19 @@ export default function RecipeDetailScreen() {
       if (modalRating !== recipe!.rating) {
         await rateRecipe(recipe!.id, modalRating);
       }
+      // まだ完成写真が1枚も無いレシピなら、今回の調理記録の写真をレシピのサムネにも採用する。
+      // 調理記録側の写真とは別ファイルとして複製し、片方を削除してももう片方が消えないようにする。
+      if (recipe!.dishPhotos.length === 0 && logPhotos.length > 0) {
+        const dishPhotos = await Promise.all(logPhotos.map(duplicatePhoto));
+        const { id: _id, createdAt: _createdAt, cookLogs: _cookLogs, ...rest } = recipe!;
+        await updateRecipe(recipe!.id, { ...rest, dishPhotos });
+      }
       setTweak('');
       setLogPhotos([]);
       setShowCookModal(false);
       showToast('調理を記録しました');
     } catch (e) {
-      Alert.alert('記録に失敗しました', e instanceof Error ? e.message : String(e));
+      alertDialog('記録に失敗しました', e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -84,7 +92,7 @@ export default function RecipeDetailScreen() {
       await deleteCookLog(recipe!.id, cookLogId);
       showToast('記録を削除しました');
     } catch (e) {
-      Alert.alert('削除に失敗しました', e instanceof Error ? e.message : String(e));
+      alertDialog('削除に失敗しました', e instanceof Error ? e.message : String(e));
     }
   }
 

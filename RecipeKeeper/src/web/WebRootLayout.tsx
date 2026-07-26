@@ -48,6 +48,7 @@ export default function WebRootLayout() {
               <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
               <Stack.Screen name="reset-password" options={{ headerShown: false }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="change-password" options={{ title: 'パスワードを更新' }} />
               <Stack.Screen name="recipe/[id]/index" options={{ title: '' }} />
               <Stack.Screen
                 name="recipe/[id]/edit"

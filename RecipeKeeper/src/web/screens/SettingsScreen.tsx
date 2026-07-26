@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -14,14 +15,11 @@ const BASIC_SEASONINGS = [
 
 export default function SettingsScreen() {
   const { session } = useAuth();
+  const router = useRouter();
+
   const [seasonings, setSeasonings] = useState<string[]>([]);
   const [newSeasoning, setNewSeasoning] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordUpdated, setPasswordUpdated] = useState(false);
+  const [isSeasoningsOpen, setIsSeasoningsOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
   const [aiPoints, setAiPoints] = useState<number | null>(null);
@@ -39,45 +37,6 @@ export default function SettingsScreen() {
       .single()
       .then(({ data }) => setAiPoints(data?.points ?? null));
   }, [session?.user.id]);
-
-  const passwordMismatch =
-    confirmNewPassword.length > 0 && newPassword !== confirmNewPassword;
-  const canUpdatePassword =
-    currentPassword.length > 0 &&
-    newPassword.length >= 6 &&
-    newPassword === confirmNewPassword &&
-    !isUpdatingPassword;
-
-  function resetPasswordFields() {
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmNewPassword('');
-  }
-
-  async function handleUpdatePassword() {
-    setPasswordError(null);
-    setPasswordUpdated(false);
-    if (!session?.user.email) return;
-    setIsUpdatingPassword(true);
-    try {
-      // supabase-jsに「現在のパスワードを検証するだけ」のAPIは無いため、
-      // 再ログインを本人確認として使う(成功すればセッションが更新される)。
-      const { error: verifyError } = await supabase.auth.signInWithPassword({
-        email: session.user.email,
-        password: currentPassword,
-      });
-      if (verifyError) throw new Error('現在のパスワードが正しくありません。');
-
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      resetPasswordFields();
-      setPasswordUpdated(true);
-    } catch (e) {
-      setPasswordError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setIsUpdatingPassword(false);
-    }
-  }
 
   async function handleDeleteAccount() {
     const confirmed = await confirmDialog(
@@ -128,22 +87,98 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Section title="アカウント" footer="AIポイントは1日1回ログインすると1ポイント増えます。今後追加予定のAIによるレシピ管理補助機能で使用します。">
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Card>
+        <Text style={styles.cardTitle}>👤 アカウント</Text>
         <Text style={styles.accountEmail}>{session?.user.email}</Text>
-        {aiPoints !== null && <Text style={styles.aiPointsText}>🎫 AIポイント: {aiPoints}</Text>}
-        <Pressable onPress={() => supabase.auth.signOut()}>
+        <Pressable onPress={() => supabase.auth.signOut()} hitSlop={8}>
           <Text style={styles.signOutText}>サインアウト</Text>
         </Pressable>
-      </Section>
+      </Card>
 
-      <Section
-        title="アカウントの削除"
-        footer="アカウントを削除すると、保存されているすべてのレシピ・調理記録・写真が完全に削除されます。この操作は取り消せません。"
-      >
+      <Card tint="gold">
+        <View style={styles.pointsRow}>
+          <Text style={styles.pointsEmoji}>🎫</Text>
+          <View style={styles.pointsTextGroup}>
+            <Text style={styles.pointsValue}>{aiPoints ?? '—'}</Text>
+            <Text style={styles.pointsLabel}>AIポイント</Text>
+          </View>
+        </View>
+        <Text style={styles.pointsFooter}>
+          1日1回ログインすると1ポイント増えます。今後追加予定のAIによるレシピ管理補助機能で使用します。
+        </Text>
+      </Card>
+
+      <Card>
+        <Text style={styles.cardTitle}>🔒 パスワード</Text>
+        <Text style={styles.cardFooter}>ログイン用のパスワードを変更します。</Text>
+        <Pressable style={styles.navButton} onPress={() => router.push('/change-password')}>
+          <Text style={styles.navButtonText}>パスワードを更新</Text>
+          <Text style={styles.navButtonChevron}>›</Text>
+        </Pressable>
+      </Card>
+
+      <Card>
+        <Pressable
+          style={styles.collapsibleHeader}
+          onPress={() => setIsSeasoningsOpen((open) => !open)}
+          hitSlop={8}
+        >
+          <Text style={styles.cardTitle}>
+            🧂 常備調味料{seasonings.length > 0 ? `(${seasonings.length})` : ''}
+          </Text>
+          <Text style={styles.chevron}>{isSeasoningsOpen ? '閉じる ▲' : '表示する ▼'}</Text>
+        </Pressable>
+
+        {isSeasoningsOpen && (
+          <>
+            <Text style={styles.cardFooter}>
+              ここに登録した調味料は、AIレシピ生成時に「家にあるもの」として扱われます。
+            </Text>
+            {seasonings.map((item) => (
+              <View key={item} style={styles.seasoningRow}>
+                <Text style={styles.seasoningText}>{item}</Text>
+                <Pressable onPress={() => removeSeasoning(item)} hitSlop={8}>
+                  <Text style={styles.removeText}>削除</Text>
+                </Pressable>
+              </View>
+            ))}
+            <View style={styles.addRow}>
+              <TextInput
+                style={styles.addInput}
+                placeholder="例: 醤油、味噌、ごま油…"
+                placeholderTextColor="#999"
+                value={newSeasoning}
+                onChangeText={setNewSeasoning}
+                onSubmitEditing={addSeasoning}
+                autoComplete="off"
+                textContentType="none"
+              />
+              <Pressable
+                style={[styles.addButton, !newSeasoning.trim() && styles.disabled]}
+                onPress={addSeasoning}
+                disabled={!newSeasoning.trim()}
+              >
+                <Text style={styles.addButtonText}>追加</Text>
+              </Pressable>
+            </View>
+            {seasonings.length === 0 && (
+              <Pressable style={styles.bulkButton} onPress={() => persist(BASIC_SEASONINGS)}>
+                <Text style={styles.bulkButtonText}>基本の調味料をまとめて登録</Text>
+              </Pressable>
+            )}
+          </>
+        )}
+      </Card>
+
+      <Card tint="danger">
+        <Text style={styles.cardTitle}>⚠️ アカウントの削除</Text>
+        <Text style={styles.cardFooter}>
+          保存されているすべてのレシピ・調理記録・写真が完全に削除されます。この操作は取り消せません。
+        </Text>
         {deleteAccountError && <Text style={styles.errorText}>{deleteAccountError}</Text>}
         <Pressable
-          style={[styles.deleteAccountButton, isDeletingAccount && styles.addButtonDisabled]}
+          style={[styles.deleteAccountButton, isDeletingAccount && styles.disabled]}
           onPress={handleDeleteAccount}
           disabled={isDeletingAccount}
         >
@@ -151,144 +186,69 @@ export default function SettingsScreen() {
             {isDeletingAccount ? '削除中…' : 'アカウントを削除する'}
           </Text>
         </Pressable>
-      </Section>
-
-      <Section title="パスワードを更新" footer="本人確認のため、現在のパスワードの入力が必要です。新しいパスワードは6文字以上にしてください。">
-        <TextInput
-          style={styles.addInput}
-          placeholder="現在のパスワード"
-          placeholderTextColor="#999"
-          value={currentPassword}
-          onChangeText={(text) => {
-            setCurrentPassword(text);
-            setPasswordUpdated(false);
-          }}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <TextInput
-          style={styles.addInput}
-          placeholder="新しいパスワード"
-          placeholderTextColor="#999"
-          value={newPassword}
-          onChangeText={(text) => {
-            setNewPassword(text);
-            setPasswordUpdated(false);
-          }}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <TextInput
-          style={styles.addInput}
-          placeholder="新しいパスワード(確認)"
-          placeholderTextColor="#999"
-          value={confirmNewPassword}
-          onChangeText={(text) => {
-            setConfirmNewPassword(text);
-            setPasswordUpdated(false);
-          }}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          onSubmitEditing={handleUpdatePassword}
-        />
-        {passwordMismatch && (
-          <Text style={styles.errorText}>新しいパスワードが一致しません</Text>
-        )}
-        {passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
-        {passwordUpdated && <Text style={styles.successText}>パスワードを更新しました</Text>}
-        <Pressable
-          style={[styles.addButtonFull, !canUpdatePassword && styles.addButtonDisabled]}
-          onPress={handleUpdatePassword}
-          disabled={!canUpdatePassword}
-        >
-          <Text style={styles.addButtonText}>{isUpdatingPassword ? '更新中…' : '更新する'}</Text>
-        </Pressable>
-      </Section>
-
-      <Section title="常備調味料" footer="ここに登録した調味料は、AIレシピ生成時に「家にあるもの」として扱われます。">
-        {seasonings.map((item) => (
-          <View key={item} style={styles.seasoningRow}>
-            <Text style={styles.seasoningText}>{item}</Text>
-            <Pressable onPress={() => removeSeasoning(item)} hitSlop={8}>
-              <Text style={styles.removeText}>削除</Text>
-            </Pressable>
-          </View>
-        ))}
-        <View style={styles.addRow}>
-          <TextInput
-            style={styles.addInput}
-            placeholder="例: 醤油、味噌、ごま油…"
-            placeholderTextColor="#999"
-            value={newSeasoning}
-            onChangeText={setNewSeasoning}
-            onSubmitEditing={addSeasoning}
-          />
-          <Pressable
-            style={[styles.addButton, !newSeasoning.trim() && styles.addButtonDisabled]}
-            onPress={addSeasoning}
-            disabled={!newSeasoning.trim()}
-          >
-            <Text style={styles.addButtonText}>追加</Text>
-          </Pressable>
-        </View>
-      </Section>
-
-      {seasonings.length === 0 && (
-        <Section title="">
-          <Pressable style={styles.bulkButton} onPress={() => persist(BASIC_SEASONINGS)}>
-            <Text style={styles.bulkButtonText}>基本の調味料をまとめて登録</Text>
-          </Pressable>
-        </Section>
-      )}
+      </Card>
     </ScrollView>
   );
 }
 
-function Section({
-  title,
-  footer,
+function Card({
+  tint,
   children,
 }: {
-  title: string;
-  footer?: string;
+  tint?: 'gold' | 'danger';
   children: React.ReactNode;
 }) {
   return (
-    <View style={styles.section}>
-      {title.length > 0 && <Text style={styles.sectionTitle}>{title}</Text>}
+    <View style={[styles.card, tint === 'gold' && styles.cardGold, tint === 'danger' && styles.cardDanger]}>
       {children}
-      {footer && <Text style={styles.footer}>{footer}</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 24 },
-  section: { gap: 8 },
-  sectionTitle: { fontSize: 13, color: '#666', fontWeight: '600' },
-  footer: { fontSize: 12, color: '#999', lineHeight: 17 },
-  accountEmail: { fontSize: 15 },
-  aiPointsText: { fontSize: 14, color: '#b8860b' },
-  signOutText: { color: '#ff3b30', fontSize: 14 },
-  deleteAccountButton: {
+  screen: { backgroundColor: '#F5F1EA' },
+  content: { padding: 16, gap: 14, paddingBottom: 40 },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 14,
+    padding: 16,
+    gap: 8,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ff3b30',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
+    borderColor: '#EDE7DD',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
-  deleteAccountButtonText: { color: '#ff3b30', fontWeight: '600' },
+  cardGold: { backgroundColor: '#FBF3E0', borderColor: '#F0DFB8' },
+  cardDanger: { borderColor: '#f7d6d3' },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: '#333' },
+  cardFooter: { fontSize: 12, color: '#888', lineHeight: 17 },
+  accountEmail: { fontSize: 15, color: '#222' },
+  signOutText: { color: '#ff3b30', fontSize: 14, marginTop: 2 },
+  pointsRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  pointsEmoji: { fontSize: 34 },
+  pointsTextGroup: { flexDirection: 'column' },
+  pointsValue: { fontSize: 30, fontWeight: '800', color: '#8a6a10', lineHeight: 34 },
+  pointsLabel: { fontSize: 13, color: '#8a6a10', fontWeight: '600' },
+  pointsFooter: { fontSize: 12, color: '#9c854f', lineHeight: 17, marginTop: 2 },
+  navButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 2,
+  },
+  navButtonText: { fontSize: 15, color: '#007AFF', fontWeight: '600' },
+  navButtonChevron: { fontSize: 18, color: '#007AFF' },
+  collapsibleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  chevron: { fontSize: 12, color: '#007AFF', fontWeight: '600' },
   errorText: { color: '#ff3b30', fontSize: 13 },
-  successText: { color: '#34c759', fontSize: 13 },
-  addButtonFull: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
   seasoningRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -299,7 +259,7 @@ const styles = StyleSheet.create({
   },
   seasoningText: { fontSize: 15 },
   removeText: { color: '#ff3b30', fontSize: 13 },
-  addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  addRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 4 },
   addInput: {
     flex: 1,
     borderWidth: StyleSheet.hairlineWidth,
@@ -314,7 +274,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  addButtonDisabled: { opacity: 0.4 },
+  disabled: { opacity: 0.4 },
   addButtonText: { color: 'white', fontWeight: '600' },
   bulkButton: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -322,6 +282,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
+    marginTop: 4,
   },
   bulkButtonText: { color: '#007AFF', fontWeight: '600' },
+  deleteAccountButton: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ff3b30',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  deleteAccountButtonText: { color: '#ff3b30', fontWeight: '600' },
 });

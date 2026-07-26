@@ -52,6 +52,21 @@ export async function saveCompressedPhoto(
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
+/**
+ * 既存の写真を新しい独立したオブジェクトとして複製する。
+ * 調理記録の写真をレシピのサムネにも使う際、同じオブジェクトを2箇所から参照すると
+ * 片方を削除したときにもう片方も巻き添えで消えてしまうため、必ず複製してから使う。
+ */
+export async function duplicatePhoto(url: string): Promise<string> {
+  const path = storagePathFromPublicUrl(url);
+  if (!path) throw new Error('写真の複製に失敗しました。');
+  const userId = await currentUserId();
+  const newPath = `${userId}/${generateId()}.jpg`;
+  const { error } = await supabase.storage.from(BUCKET).copy(path, newPath);
+  if (error) throw new Error(`写真の複製に失敗しました: ${error.message}`);
+  return supabase.storage.from(BUCKET).getPublicUrl(newPath).data.publicUrl;
+}
+
 export async function deletePhoto(url: string): Promise<void> {
   const path = storagePathFromPublicUrl(url);
   if (!path) return;

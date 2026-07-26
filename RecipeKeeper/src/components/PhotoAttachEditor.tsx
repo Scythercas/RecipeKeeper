@@ -1,6 +1,15 @@
 import * as ImagePicker from 'expo-image-picker';
-import React from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { saveCompressedPhoto } from '../photoStorage';
 
@@ -10,31 +19,47 @@ type Props = {
 };
 
 export default function PhotoAttachEditor({ photos, onChange }: Props) {
+  // ボタンを押してからピッカーが開く/圧縮が終わるまでの間に連打すると同じ写真が
+  // 2重に追加されてしまっていたため、処理中はボタン自体を無効化する。
+  const [isBusy, setIsBusy] = useState(false);
+
   async function addFromLibrary() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('権限が必要です', 'フォトライブラリへのアクセスを許可してください。');
-      return;
+    if (isBusy) return;
+    setIsBusy(true);
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('権限が必要です', 'フォトライブラリへのアクセスを許可してください。');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        selectionLimit: 5,
+        quality: 1,
+      });
+      if (result.canceled) return;
+      await appendAssets(result.assets);
+    } finally {
+      setIsBusy(false);
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      selectionLimit: 5,
-      quality: 1,
-    });
-    if (result.canceled) return;
-    await appendAssets(result.assets);
   }
 
   async function addFromCamera() {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('権限が必要です', 'カメラへのアクセスを許可してください。');
-      return;
+    if (isBusy) return;
+    setIsBusy(true);
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('権限が必要です', 'カメラへのアクセスを許可してください。');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({ quality: 1 });
+      if (result.canceled) return;
+      await appendAssets(result.assets);
+    } finally {
+      setIsBusy(false);
     }
-    const result = await ImagePicker.launchCameraAsync({ quality: 1 });
-    if (result.canceled) return;
-    await appendAssets(result.assets);
   }
 
   async function appendAssets(assets: ImagePicker.ImagePickerAsset[]) {
@@ -65,12 +90,21 @@ export default function PhotoAttachEditor({ photos, onChange }: Props) {
         </ScrollView>
       )}
       <View style={styles.buttonsRow}>
-        <Pressable style={styles.button} onPress={addFromLibrary}>
+        <Pressable
+          style={[styles.button, isBusy && styles.buttonDisabled]}
+          onPress={addFromLibrary}
+          disabled={isBusy}
+        >
           <Text style={styles.buttonText}>ライブラリ</Text>
         </Pressable>
-        <Pressable style={styles.button} onPress={addFromCamera}>
+        <Pressable
+          style={[styles.button, isBusy && styles.buttonDisabled]}
+          onPress={addFromCamera}
+          disabled={isBusy}
+        >
           <Text style={styles.buttonText}>カメラ</Text>
         </Pressable>
+        {isBusy && <ActivityIndicator size="small" />}
       </View>
     </View>
   );
@@ -93,7 +127,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   removeBadgeText: { color: 'white', fontSize: 12, lineHeight: 14 },
-  buttonsRow: { flexDirection: 'row', gap: 8 },
+  buttonsRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   button: {
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#999',
@@ -101,5 +135,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
+  buttonDisabled: { opacity: 0.4 },
   buttonText: { fontSize: 14 },
 });
